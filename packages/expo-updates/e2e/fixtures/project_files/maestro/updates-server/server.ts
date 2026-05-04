@@ -437,7 +437,15 @@ app.get('/static-file-count', (_: Request, res: Response) => {
 
 app.post('/upload-log-entries', (req: Request, res: Response) => {
   console.log('Received request to upload logs');
-  logEntries = req.body as unknown as UpdatesLogEntry[];
+  const candidateLogEntries = req.body;
+  if (
+    !Array.isArray(candidateLogEntries) ||
+    !candidateLogEntries.every((entry) => entry !== null && typeof entry === 'object')
+  ) {
+    res.status(400).send('Invalid log entries payload');
+    return;
+  }
+  logEntries = candidateLogEntries as UpdatesLogEntry[];
   console.log(`Received ${logEntries.length} log entries`);
   res.status(200).send('OK');
 });
