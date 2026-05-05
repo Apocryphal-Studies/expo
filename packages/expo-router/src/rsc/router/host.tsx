@@ -45,8 +45,8 @@ const { createFromFetch, encodeReply } = RSDWClient;
 
 // TODO: Maybe this could be a bundler global instead.
 const IS_DOM =
-  // @ts-expect-error: Added via react-native-webview
-  typeof ReactNativeWebView !== 'undefined';
+  // @ts-expect-error: Added via expo/dom
+  typeof $$EXPO_INITIAL_PROPS !== 'undefined';
 
 // NOTE: Ensured to start with `/`.
 const RSC_PATH = '/_flight/' + process.env.EXPO_OS; // process.env.EXPO_RSC_PATH;
@@ -188,7 +188,7 @@ const checkStatus = async <T extends ResponseLike>(responsePromise: Promise<T>):
 type Elements = Promise<Record<string, ReactNode>> & {
   prev?: Record<string, ReactNode> | undefined;
 };
-function getCached<T>(c: () => T, m: WeakMap<object, T>, k: object): T {
+function getCached<T>(c: () => T, m: WeakMap<any, T>, k: object): T {
   return (m.has(k) ? m : m.set(k, c())).get(k) as T;
 }
 

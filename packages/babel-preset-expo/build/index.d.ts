@@ -1,4 +1,5 @@
 import type { ConfigAPI, TransformOptions } from '@babel/core';
+import type { PluginOptions as ReactCompilerOptions } from 'babel-plugin-react-compiler';
 type BabelPresetExpoPlatformOptions = {
     /** Disable or configure the `@babel/plugin-proposal-decorators` plugin. */
     decorators?: false | {
@@ -11,6 +12,12 @@ type BabelPresetExpoPlatformOptions = {
      * using `react-native-worklets` or Reanimated 4. @default `true`
      */
     worklets?: boolean;
+    /** Enable or disable adding the `@expo/ui` Babel plugin when `@expo/ui` is
+     * installed. The plugin rewrites `Icon.select({ ios, android })` to the
+     * active platform's value (read from the babel caller) so per-platform
+     * bundles only carry their own branch. @default `true`
+     */
+    expoUi?: boolean;
     /** @deprecated Set `jsxRuntime: 'classic'` to disable automatic JSX handling.  */
     useTransformReactJSXExperimental?: boolean;
     /** Change the policy for handling JSX in a file. Passed to `plugin-transform-react-jsx`. @default `'automatic'` */
@@ -24,62 +31,19 @@ type BabelPresetExpoPlatformOptions = {
     enableBabelRuntime?: boolean | string;
     unstable_transformProfile?: 'default' | 'hermes-stable' | 'hermes-canary';
     /** Settings to pass to `babel-plugin-react-compiler`. Set as `false` to disable the plugin. */
-    'react-compiler'?: false | {
-        enableUseMemoCachePolyfill?: boolean;
-        compilationMode?: 'infer' | 'strict';
-        panicThreshold?: 'none' | 'all_errors' | 'critical_errors';
-        logger?: any;
-        environment?: {
-            customHooks?: unknown;
-            enableResetCacheOnSourceFileChanges?: boolean;
-            enablePreserveExistingMemoizationGuarantees?: boolean;
-            /** @default true */
-            validatePreserveExistingMemoizationGuarantees?: boolean;
-            enableForest?: boolean;
-            enableUseTypeAnnotations?: boolean;
-            /** @default true */
-            enableReactiveScopesInHIR?: boolean;
-            /** @default true */
-            validateHooksUsage?: boolean;
-            validateRefAccessDuringRender?: boolean;
-            /** @default true */
-            validateNoSetStateInRender?: boolean;
-            validateMemoizedEffectDependencies?: boolean;
-            validateNoCapitalizedCalls?: string[] | null;
-            /** @default true */
-            enableAssumeHooksFollowRulesOfReact?: boolean;
-            /** @default true */
-            enableTransitivelyFreezeFunctionExpressions: boolean;
-            enableEmitFreeze?: unknown;
-            enableEmitHookGuards?: unknown;
-            enableEmitInstrumentForget?: unknown;
-            assertValidMutableRanges?: boolean;
-            enableChangeVariableCodegen?: boolean;
-            enableMemoizationComments?: boolean;
-            throwUnknownException__testonly?: boolean;
-            enableTreatFunctionDepsAsConditional?: boolean;
-            /** Automatically enabled when reanimated plugin is added. */
-            enableCustomTypeDefinitionForReanimated?: boolean;
-            /** @default `null` */
-            hookPattern?: string | null;
-        };
-        gating?: unknown;
-        noEmit?: boolean;
-        runtimeModule?: string | null;
-        eslintSuppressionRules?: unknown | null;
-        flowSuppressions?: boolean;
-        ignoreUseNoForget?: boolean;
-    };
+    'react-compiler'?: false | ReactCompilerOptions;
+    /** Only set to `false` to disable `react-refresh/babel` forcefully, defaults to `undefined` */
+    enableReactFastRefresh?: boolean;
     /** Enable `typeof window` runtime checks. The default behavior is to minify `typeof window` on web clients to `"object"` and `"undefined"` on servers. */
     minifyTypeofWindow?: boolean;
     /**
      * Enable that transform that converts `import.meta` to `globalThis.__ExpoImportMetaRegistry`.
      *
-     * > **Note:** Use this option at your own risk. If the JavaScript engine supports `import.meta` natively, this transformation may interfere with the native implementation.
+     * > **Note:** If the JavaScript engine supports `import.meta` natively, this transformation may interfere with the native implementation.
      *
-     * @default `false` on client and `true` on server.
+     * @default `true`
      */
-    unstable_transformImportMeta?: boolean;
+    transformImportMeta?: boolean;
 };
 export type BabelPresetExpoOptions = BabelPresetExpoPlatformOptions & {
     /** Web-specific settings. */

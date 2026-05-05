@@ -10,7 +10,6 @@ const BARE_EXPO_DIR = path.join(Directories.getAppsDir(), 'bare-expo', 'android'
 
 const excludedInTests = [
   'expo-module-template',
-  'expo-module-template-local',
   'expo-splash-screen',
   'expo-modules-test-core',
   'expo-dev-client',
@@ -123,7 +122,7 @@ async function runGradlew(packages: Packages.Package[], testCommand: string, cwd
   try {
     await spawnAsync(
       './gradlew',
-      packages.map((pkg) => `:${pkg.packageSlug}:${testCommand}`),
+      ['--build-cache', ...packages.map((pkg) => `:${pkg.packageSlug}:${testCommand}`)],
       {
         cwd,
         stdio: 'inherit',

@@ -22,7 +22,8 @@ exports.mergeLinkingOptionsAsync = mergeLinkingOptionsAsync;
 exports.queryAutolinkingModulesFromProjectAsync = queryAutolinkingModulesFromProjectAsync;
 exports.findProjectRootSync = findProjectRootSync;
 exports.resolveSearchPathsAsync = resolveSearchPathsAsync;
-const find_up_1 = __importDefault(require("find-up"));
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const findModules_1 = require("./autolinking/findModules");
 const resolveModules_1 = require("./autolinking/resolveModules");
 const autolinkingOptions_1 = require("./commands/autolinkingOptions");
@@ -33,6 +34,7 @@ var dependencies_1 = require("./dependencies");
 Object.defineProperty(exports, "makeCachedDependenciesLinker", { enumerable: true, get: function () { return dependencies_1.makeCachedDependenciesLinker; } });
 Object.defineProperty(exports, "scanDependencyResolutionsForPlatform", { enumerable: true, get: function () { return dependencies_1.scanDependencyResolutionsForPlatform; } });
 Object.defineProperty(exports, "scanExpoModuleResolutionsForPlatform", { enumerable: true, get: function () { return dependencies_1.scanExpoModuleResolutionsForPlatform; } });
+__exportStar(require("./utilities"), exports);
 /** @deprecated */
 async function mergeLinkingOptionsAsync(argumentsOptions) {
     const autolinkingOptionsLoader = (0, autolinkingOptions_1.createAutolinkingOptionsLoader)(argumentsOptions);
@@ -56,11 +58,13 @@ async function queryAutolinkingModulesFromProjectAsync(projectRoot, options) {
 }
 /** @deprecated */
 function findProjectRootSync(cwd = process.cwd()) {
-    const result = find_up_1.default.sync('package.json', { cwd });
-    if (!result) {
-        throw new Error(`Couldn't find "package.json" up from path "${cwd}"`);
+    for (let dir = cwd; path_1.default.dirname(dir) !== dir; dir = path_1.default.dirname(dir)) {
+        const file = path_1.default.resolve(dir, 'package.json');
+        if (fs_1.default.existsSync(file)) {
+            return file;
+        }
     }
-    return result;
+    throw new Error(`Couldn't find "package.json" up from path "${cwd}"`);
 }
 /** @deprecated */
 async function resolveSearchPathsAsync(searchPaths, cwd) {

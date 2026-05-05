@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { getConfig } from '@expo/config';
-import { compileModsAsync, ModPlatform } from '@expo/config-plugins';
+import type { ModPlatform } from '@expo/config-plugins';
+import { compileModsAsync } from '@expo/config-plugins';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import prompts from 'prompts';
@@ -19,9 +20,14 @@ import {
 import { withIosModules } from './plugins/ios/withIosModules';
 import { withSwiftVersion } from './plugins/ios/withSwiftVersion';
 import { withXCParseXcodeProjectBaseMod } from './plugins/ios/withXCParseXcodeProject';
-import { getDefaultSdkVersion, getVersionInfo, VersionInfo } from './utils/expoVersionMappings';
+import type { VersionInfo } from './utils/expoVersionMappings';
+import { getDefaultSdkVersion, getVersionInfo } from './utils/expoVersionMappings';
 import { learnMore } from './utils/link';
-import { installExpoPackageAsync, installPodsAsync } from './utils/packageInstaller';
+import {
+  installBabelPresetExpoNonInteractiveAsync,
+  installExpoPackageAsync,
+  installPodsAsync,
+} from './utils/packageInstaller';
 import { normalizeProjectRootAsync } from './utils/projectRoot';
 
 const packageJSON = require('../package.json');
@@ -186,9 +192,14 @@ async function runAsync() {
 
   console.log('\u203A Installing expo packages...');
   await installExpoPackageAsync(projectRoot, expoPackageVersion);
+  if (cliIntegration) {
+    await installBabelPresetExpoNonInteractiveAsync(projectRoot);
+  }
 
-  console.log('\u203A Installing ios pods...');
-  await installPodsAsync(projectRoot);
+  if (process.platform === 'darwin') {
+    console.log('\u203A Installing ios pods...');
+    await installPodsAsync(projectRoot);
+  }
 
   console.log(chalk.bold('\u203A Installation completed!'));
 }

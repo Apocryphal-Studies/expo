@@ -1,4 +1,4 @@
-import fs from 'fs';
+import type fs from 'fs';
 import { vol } from 'memfs';
 import path from 'path';
 
@@ -47,6 +47,7 @@ describe('iOS Updates config', () => {
             'expo-channel-name': 'test',
             testheader: 'test',
           },
+          enableBsdiffPatchSupport: true,
         },
       },
       {} as any,
@@ -65,6 +66,7 @@ describe('iOS Updates config', () => {
       ),
       EXUpdatesCodeSigningMetadata: { alg: 'rsa-v1_5-sha256', keyid: 'test' },
       EXUpdatesRequestHeaders: { 'expo-channel-name': 'test', testheader: 'test' },
+      EXUpdatesEnableBsdiffPatchSupport: true,
     });
   });
 });

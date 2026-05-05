@@ -1,11 +1,10 @@
-import { getConfig } from '@expo/config';
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import fs from 'fs';
 import path from 'path';
 
 import * as XcodeBuild from './XcodeBuild';
-import { Options } from './XcodeBuild.types';
+import type { Options } from './XcodeBuild.types';
 import { getLaunchInfoForBinaryAsync, launchAppAsync } from './launchApp';
 import { resolveOptionsAsync } from './options/resolveOptions';
 import { getValidBinaryPathAsync } from './validateExternalBinary';
@@ -16,7 +15,7 @@ import { getContainerPathAsync, simctlAsync } from '../../start/platforms/ios/si
 import { resolveBuildCache, uploadBuildCache } from '../../utils/build-cache-providers';
 import { maybePromptToSyncPodsAsync } from '../../utils/cocoapods';
 import { CommandError } from '../../utils/errors';
-import { setNodeEnv } from '../../utils/nodeEnv';
+import { setNodeEnv, loadEnvFiles } from '../../utils/nodeEnv';
 import { ensurePortAvailabilityAsync } from '../../utils/port';
 import { profile } from '../../utils/profile';
 import { getSchemesForIosAsync } from '../../utils/scheme';
@@ -28,7 +27,7 @@ const debug = require('debug')('expo:run:ios');
 
 export async function runIosAsync(projectRoot: string, options: Options) {
   setNodeEnv(options.configuration === 'Release' ? 'production' : 'development');
-  require('@expo/env').load(projectRoot);
+  loadEnvFiles(projectRoot);
 
   assertPlatform();
 
@@ -41,7 +40,7 @@ export async function runIosAsync(projectRoot: string, options: Options) {
   // Resolve the CLI arguments into useable options.
   const props = await profile(resolveOptionsAsync)(projectRoot, options);
 
-  const projectConfig = getConfig(projectRoot);
+  // We only support build cache for simulator builds for now.
   if (!options.binary && props.buildCacheProvider && props.isSimulator) {
     const localPath = await resolveBuildCache({
       projectRoot,
@@ -57,6 +56,13 @@ export async function runIosAsync(projectRoot: string, options: Options) {
   if (options.rebundle) {
     Log.warn(`The --unstable-rebundle flag is experimental and may not work as expected.`);
     // Get the existing binary path to re-bundle the app.
+
+    // Rebundling requires a specific device to get the container path from.
+    if (!props.device) {
+      throw new CommandError(
+        'Re-bundling requires a specific device. Cannot use --device generic.'
+      );
+    }
 
     let binaryPath: string;
     if (!options.binary) {
@@ -132,9 +138,33 @@ export async function runIosAsync(projectRoot: string, options: Options) {
     // Find the path to the built app binary, this will be used to install the binary
     // on a device.
     binaryPath = await profile(XcodeBuild.getAppBinaryPath)(buildOutput);
-    shouldUpdateBuildCache = true;
+    // We only support build cache for simulator builds for now.
+    shouldUpdateBuildCache = props.isSimulator;
   }
+
+  // Copy the binary to the output directory if specified.
+  if (options.output) {
+    binaryPath = await copyBinaryToOutputAsync(binaryPath, options.output);
+  }
+
   debug('Binary path:', binaryPath);
+
+  // Generic build (--device generic) - skip install/launch, just output the binary path.
+  if (!props.device) {
+    Log.log(chalk`\n{green ✓} Build complete`);
+    Log.log(chalk`{bold Binary:} ${binaryPath}`);
+
+    if (shouldUpdateBuildCache && props.buildCacheProvider) {
+      await uploadBuildCache({
+        projectRoot,
+        platform: 'ios',
+        provider: props.buildCacheProvider,
+        buildPath: binaryPath,
+        runOptions: options,
+      });
+    }
+    return;
+  }
 
   // Ensure the port hasn't become busy during the build.
   if (props.shouldStartBundler && !(await ensurePortAvailabilityAsync(projectRoot, props))) {
@@ -204,4 +234,23 @@ function assertPlatform() {
       chalk`iOS apps can only be built on macOS devices. Use {cyan eas build -p ios} to build in the cloud.`
     );
   }
+}
+
+/** Copy the built binary to the specified output directory. */
+async function copyBinaryToOutputAsync(binaryPath: string, outputDir: string): Promise<string> {
+  const absoluteOutputDir = path.resolve(outputDir);
+  const appName = path.basename(binaryPath);
+  const outputPath = path.join(absoluteOutputDir, appName);
+
+  debug('Copying binary to output directory:', outputPath);
+
+  // Create the output directory if it doesn't exist.
+  await fs.promises.mkdir(absoluteOutputDir, { recursive: true });
+
+  // Copy the .app bundle to the output directory.
+  await fs.promises.cp(binaryPath, outputPath, { recursive: true });
+
+  Log.log(chalk`{dim Copied to} ${outputPath}`);
+
+  return outputPath;
 }

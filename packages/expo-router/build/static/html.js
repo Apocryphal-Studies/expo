@@ -4,31 +4,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ScrollViewStyleReset = ScrollViewStyleReset;
-exports.Html = Html;
-/**
- * Copyright © 2023 650 Industries.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
+exports.InnerRoot = InnerRoot;
+const jsx_runtime_1 = require("react/jsx-runtime");
 const react_1 = __importDefault(require("react"));
+const ServerDataLoaderContext_1 = require("../loaders/ServerDataLoaderContext");
+const native_1 = require("../react-navigation/native");
 /**
  * Root style-reset for full-screen React Native web apps with a root `<ScrollView />` should use the following styles to ensure native parity. [Learn more](https://necolas.github.io/react-native-web/docs/setup/#root-element).
  */
 function ScrollViewStyleReset() {
-    return (<style id="expo-reset" dangerouslySetInnerHTML={{
+    return ((0, jsx_runtime_1.jsx)("style", { id: "expo-reset", dangerouslySetInnerHTML: {
             __html: `#root,body,html{height:100%}body{overflow:hidden}#root{display:flex}`,
-        }}/>);
+        } }));
 }
-function Html({ children }) {
-    return (<html lang="en">
-      <head>
-        <meta charSet="utf-8"/>
-        <meta httpEquiv="X-UA-Compatible" content="IE=edge"/>
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
-        <ScrollViewStyleReset />
-      </head>
-      <body>{children}</body>
-    </html>);
+function InnerRoot({ children, loadedData, }) {
+    // NOTE(@hassankhan): This ref seems to be unnecessary, double-check SSR/SSG code paths and remove
+    const ref = react_1.default.createRef();
+    return ((0, jsx_runtime_1.jsx)(ServerDataLoaderContext_1.ServerDataLoaderContext, { value: loadedData, children: (0, jsx_runtime_1.jsx)(native_1.ServerContainer, { ref: ref, children: children }) }));
 }
 //# sourceMappingURL=html.js.map

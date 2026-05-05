@@ -37,7 +37,9 @@ exports.default = ({ types: t }) => ({
                 nodes.push(node);
             }
             const [importDeclaration] = path.replaceWithMultiple(nodes);
-            path.scope.registerDeclaration(importDeclaration);
+            if (importDeclaration != null) {
+                path.scope.registerDeclaration(importDeclaration);
+            }
         },
     },
 });
@@ -48,3 +50,4 @@ function withLocation(node, loc) {
     }
     return node;
 }
+//# sourceMappingURL=babel-plugin-transform-export-namespace-from.js.map

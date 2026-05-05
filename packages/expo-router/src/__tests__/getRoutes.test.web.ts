@@ -1,4 +1,5 @@
 import { getRoutes } from '../getRoutes';
+import type { RewriteConfig } from '../getRoutesCore';
 import { inMemoryContext } from '../testing-library/context-stubs';
 
 describe('rewrites', () => {
@@ -11,7 +12,7 @@ describe('rewrites', () => {
         {
           internal_stripLoadRoute: true,
           skipGenerated: true,
-          rewrites: [{ source: '/old', destination: '/(app)/index' }],
+          rewrites: [{ source: '/old', destination: '/(app)/index' } as RewriteConfig],
           preserveRedirectAndRewrites: true,
         }
       )
@@ -54,8 +55,8 @@ describe('rewrites', () => {
         internal_stripLoadRoute: true,
         skipGenerated: true,
         rewrites: [
-          { source: '/info', destination: '/about' },
-          { source: '/reach-us', destination: '/contact' },
+          { source: '/info', destination: '/about' } as RewriteConfig,
+          { source: '/reach-us', destination: '/contact' } as RewriteConfig,
         ],
         preserveRedirectAndRewrites: true,
       }
@@ -123,8 +124,8 @@ describe('rewrites', () => {
         internal_stripLoadRoute: true,
         skipGenerated: true,
         rewrites: [
-          { source: '/info', destination: '/(app)/index' },
-          { source: '/news', destination: '/(app)/index' },
+          { source: '/info', destination: '/(app)/index' } as RewriteConfig,
+          { source: '/news', destination: '/(app)/index' } as RewriteConfig,
         ],
         preserveRedirectAndRewrites: true,
       }
@@ -177,7 +178,7 @@ describe('rewrites', () => {
         {
           internal_stripLoadRoute: true,
           skipGenerated: true,
-          rewrites: [{ source: '/old/[slug]', destination: '/(app)/[slug]' }],
+          rewrites: [{ source: '/old/[slug]', destination: '/(app)/[slug]' } as RewriteConfig],
           preserveRedirectAndRewrites: true,
         }
       )
@@ -238,7 +239,7 @@ describe('rewrites', () => {
         {
           internal_stripLoadRoute: true,
           skipGenerated: true,
-          rewrites: [{ source: 'old/[slug]', destination: '/(app)/[slug]' }],
+          rewrites: [{ source: 'old/[slug]', destination: '/(app)/[slug]' } as RewriteConfig],
           preserveRedirectAndRewrites: true,
         }
       )
@@ -297,7 +298,7 @@ describe('rewrites', () => {
         {
           internal_stripLoadRoute: true,
           skipGenerated: true,
-          rewrites: [{ source: '/404', destination: '/+not-found' }],
+          rewrites: [{ source: '/404', destination: '/+not-found' } as RewriteConfig],
           preserveRedirectAndRewrites: true,
         }
       )
@@ -481,5 +482,53 @@ describe('middleware', () => {
     );
 
     process.env.NODE_ENV = originalEnv;
+  });
+});
+
+describe('loaders', () => {
+  it('should include routes with loaders', async () => {
+    const routes = getRoutes(
+      inMemoryContext({
+        '(app)/index': {
+          default: () => null,
+          loader: () => Promise.resolve({ data: 'Loader for index' }),
+        },
+      }),
+      { skipGenerated: true }
+    );
+
+    // Narrows type for TypeScript
+    if (!routes) throw new Error('Expected routes to be defined');
+    const indexRoute = routes.children.find((route) => route.route === '(app)/index');
+    expect(indexRoute).toBeDefined();
+    // Narrows type for TypeScript
+    if (!indexRoute) throw new Error('Expected indexRoute to be defined');
+    const loadedIndexRoute = indexRoute.loadRoute();
+    // Narrows type for TypeScript
+    if (!loadedIndexRoute.loader) throw new Error('Expected loader to be defined');
+    expect(await loadedIndexRoute.loader(undefined, {})).toEqual({
+      data: 'Loader for index',
+    });
+  });
+
+  it('should validate loader is a function in development mode', () => {
+    process.env.NODE_ENV = 'development';
+
+    expect(() => {
+      getRoutes(
+        inMemoryContext({
+          '(app)/index': {
+            default: () => null,
+            // This is intentionally not a function to trigger an error
+            loader: 'not a function' as unknown as () => Promise<unknown>,
+          },
+        }),
+        {
+          skipGenerated: true,
+          importMode: 'sync',
+          ignoreRequireErrors: false,
+        }
+      );
+    }).toThrow('Route "./(app)/index.js" exports a loader that is not a function.');
   });
 });

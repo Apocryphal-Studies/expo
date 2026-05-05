@@ -1,5 +1,5 @@
 import ExpoFileSystem from './ExpoFileSystem';
-import type { PathInfo } from './ExpoFileSystem.types';
+import { type DownloadOptions, type PathInfo, type UploadOptions, type UploadResult, type DownloadTaskOptions, type DownloadPauseState, type UploadTaskState, type DownloadTaskState, type WatchEvent, type WatchOptions, type WatchSubscription } from './ExpoFileSystem.types';
 import { PathUtilities } from './pathUtilities';
 export declare class Paths extends PathUtilities {
     /**
@@ -36,10 +36,11 @@ export declare class Paths extends PathUtilities {
  * The constructor accepts an array of strings that are joined to create the file URI. The first argument can also be a `Directory` instance (like `Paths.cache`) or a `File` instance (which creates a new reference to the same file).
  * @example
  * ```ts
- * const file = new File(File.cache, "subdirName", "file.txt");
+ * const file = new File(Paths.cache, "subdirName", "file.txt");
  * ```
  */
 export declare class File extends ExpoFileSystem.FileSystemFile implements Blob {
+    static downloadFileAsync: (url: string, destination: Directory | File, options?: DownloadOptions) => Promise<File>;
     /**
      * Creates an instance of a file. It can be created for any path, and does not need to exist on the filesystem during creation.
      *
@@ -47,7 +48,7 @@ export declare class File extends ExpoFileSystem.FileSystemFile implements Blob 
      * @param uris An array of: `file:///` string URIs, `File` instances, and `Directory` instances representing an arbitrary location on the file system.
      * @example
      * ```ts
-     * const file = new File(File.cache, "subdirName", "file.txt");
+     * const file = new File(Paths.cache, "subdirName", "file.txt");
      * ```
      */
     constructor(...uris: (string | File | Directory)[]);
@@ -66,6 +67,31 @@ export declare class File extends ExpoFileSystem.FileSystemFile implements Blob 
     arrayBuffer(): Promise<ArrayBuffer>;
     stream(): ReadableStream<Uint8Array<ArrayBuffer>>;
     slice(start?: number, end?: number, contentType?: string): Blob;
+    upload(url: string, options?: UploadOptions): Promise<UploadResult>;
+    createUploadTask(url: string, options?: UploadOptions): UploadTask;
+    static createDownloadTask(url: string, destination: File | Directory, options?: DownloadTaskOptions): DownloadTask;
+    /**
+     * Watches this file for changes on the filesystem.
+     *
+     * The watcher automatically stops when the file is deleted or renamed. To stop watching manually,
+     * call `remove()` on the returned subscription.
+     *
+     * @param callback Invoked when a change is detected. Receives a `WatchEvent` describing what changed.
+     * @param options Configuration for debouncing and filtering events.
+     * @return A subscription handle. Call `remove()` to stop watching.
+     *
+     * @example
+     * ```ts
+     * const file = new File(Paths.cache, 'data.json');
+     * const subscription = file.watch((event) => {
+     *   console.log(`File ${event.type}`);
+     * });
+     *
+     * // Later, stop watching:
+     * subscription.remove();
+     * ```
+     */
+    watch(callback: (event: WatchEvent<File>) => void, options?: WatchOptions): WatchSubscription;
 }
 /**
  * Represents a directory on the filesystem.
@@ -75,10 +101,11 @@ export declare class File extends ExpoFileSystem.FileSystemFile implements Blob 
  * The constructor accepts an array of strings that are joined to create the directory URI. The first argument can also be a `Directory` instance (like `Paths.cache`).
  * @example
  * ```ts
- * const directory = new Directory(File.cache, "subdirName");
+ * const directory = new Directory(Paths.cache, "subdirName");
  * ```
  */
 export declare class Directory extends ExpoFileSystem.FileSystemDirectory {
+    static pickDirectoryAsync: (initialUri?: string) => Promise<Directory>;
     /**
      * Creates an instance of a directory. It can be created for any path, and does not need to exist on the filesystem during creation.
      *
@@ -86,7 +113,7 @@ export declare class Directory extends ExpoFileSystem.FileSystemDirectory {
      * @param uris An array of: `file:///` string URIs, `File` instances, and `Directory` instances representing an arbitrary location on the file system.
      * @example
      * ```ts
-     * const directory = new Directory(File.cache, "subdirName");
+     * const directory = new Directory(Paths.cache, "subdirName");
      * ```
      */
     constructor(...uris: (string | File | Directory)[]);
@@ -103,5 +130,70 @@ export declare class Directory extends ExpoFileSystem.FileSystemDirectory {
     get name(): string;
     createFile(name: string, mimeType: string | null): File;
     createDirectory(name: string): Directory;
+    /**
+     * Watches this directory for changes to its contents or the directory itself.
+     *
+     * Events are emitted when files or subdirectories are created, modified, deleted, or renamed
+     * within this directory. On iOS, child changes are surfaced as a coarse-grained `modified` event
+     * on the directory itself, so filtering for child-level `created`, `deleted`, or `renamed` events
+     * is not reliable. The watcher automatically stops when the directory is deleted or renamed.
+     * To stop watching manually, call `remove()` on the returned subscription.
+     *
+     * @param callback Invoked when a change is detected. Receives a `WatchEvent` describing what changed.
+     * @param options Configuration for debouncing and filtering events.
+     * @return A subscription handle. Call `remove()` to stop watching.
+     *
+     * @example
+     * ```ts
+     * const cacheDir = new Directory(Paths.cache);
+     * const subscription = cacheDir.watch((event) => {
+     *   console.log(`${event.type}: ${event.target.uri}`);
+     * });
+     *
+     * // Later, stop watching:
+     * subscription.remove();
+     * ```
+     */
+    watch(callback: (event: WatchEvent<File | Directory>) => void, options?: WatchOptions): WatchSubscription;
+}
+/**
+ * Represents an upload task with progress tracking and cancellation support.
+ */
+export declare class UploadTask extends ExpoFileSystem.FileSystemUploadTask {
+    private _state;
+    private _file;
+    private _url;
+    private _options?;
+    private _subscription?;
+    private _abortHandler?;
+    constructor(file: File, url: string, options?: UploadOptions);
+    get state(): UploadTaskState;
+    uploadAsync(): Promise<UploadResult>;
+    cancel(): void;
+}
+/**
+ * Represents a download task with pause/resume support and progress tracking.
+ */
+export declare class DownloadTask extends ExpoFileSystem.FileSystemDownloadTask {
+    private _state;
+    private _url;
+    private _destination;
+    private _options?;
+    private _resumeData?;
+    private _subscription?;
+    private _abortHandler?;
+    private _inFlightOperation?;
+    private _pauseRequest?;
+    constructor(url: string, destination: File | Directory, options?: DownloadTaskOptions);
+    get state(): DownloadTaskState;
+    downloadAsync(): Promise<File | null>;
+    pause(): void;
+    pauseAsync(): Promise<void>;
+    resumeAsync(): Promise<File | null>;
+    cancel(): void;
+    savable(): DownloadPauseState;
+    static fromSavable(state: DownloadPauseState, options?: DownloadTaskOptions): DownloadTask;
+    private _runDownloadOperation;
+    private _emitFinalProgressEvent;
 }
 //# sourceMappingURL=FileSystem.d.ts.map

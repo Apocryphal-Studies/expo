@@ -1,15 +1,17 @@
 'use client';
 import React from 'react';
+import type { ColorValue } from 'react-native';
 import { Drawer } from 'vaul';
 
 import modalStyles from './modalStyles';
-import { CSSWithVars } from './types';
+import type { CSSWithVars } from './types';
 import { useIsDesktop } from './utils';
-import { ExtendedStackNavigationOptions } from '../../layouts/StackClient';
+import type { ExtendedStackNavigationOptions } from '../../layouts/StackClient';
 
 function ModalStackRouteDrawer({
   routeKey,
   options,
+  dismissible,
   renderScreen,
   onDismiss,
   themeColors,
@@ -18,7 +20,8 @@ function ModalStackRouteDrawer({
   options: ExtendedStackNavigationOptions;
   renderScreen: () => React.ReactNode;
   onDismiss: () => void;
-  themeColors: { card: string; background: string };
+  themeColors: { card: ColorValue; background: ColorValue };
+  dismissible?: boolean;
 }) {
   const [open, setOpen] = React.useState(true);
   // Determine sheet vs. modal with an SSR-safe hook. The first render (during
@@ -42,13 +45,13 @@ function ModalStackRouteDrawer({
   }
 
   const [snap, setSnap] = React.useState<number | string | null>(
-    useCustomSnapPoints && isArrayDetents ? allowed[0] : 1
+    useCustomSnapPoints && isArrayDetents ? allowed[0]! : 1
   );
 
   // Update the snap value when custom snap points change.
   React.useEffect(() => {
     if (isSheet) {
-      const next = useCustomSnapPoints && isArrayDetents ? allowed[0] : 1;
+      const next = useCustomSnapPoints && isArrayDetents ? allowed[0]! : 1;
       setSnap(next);
     } else {
       // Desktop modal always fixed snap at 1
@@ -69,7 +72,7 @@ function ModalStackRouteDrawer({
 
   // Using CSS variables so defaults live in CSS and can be overridden via props.
   const modalStyleVars: CSSWithVars = {
-    backgroundColor: themeColors.background,
+    backgroundColor: themeColors.background as string,
   };
 
   if (!isSheet) {
@@ -178,7 +181,7 @@ function ModalStackRouteDrawer({
     <Drawer.Root
       key={`${routeKey}-${isSheet ? 'sheet' : 'modal'}`}
       open={open}
-      dismissible={options.gestureEnabled ?? true}
+      dismissible={dismissible ?? options.gestureEnabled ?? true}
       onAnimationEnd={handleOpenChange}
       shouldScaleBackground
       autoFocus

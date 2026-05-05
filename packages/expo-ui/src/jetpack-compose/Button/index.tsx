@@ -1,114 +1,116 @@
 import { requireNativeView } from 'expo';
-import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { type ColorValue } from 'react-native';
 
-import { MaterialIcon } from './types';
-import { ExpoModifier, ViewEvent } from '../../types';
-
-/**
- * The built-in button styles available on Android.
- * - `outlined` - A button with an outline.
- * - `elevated` - A filled button with a shadow.
- */
-export type ButtonVariant = 'default' | 'bordered' | 'borderless' | 'outlined' | 'elevated';
+import type { ModifierConfig, ViewEvent } from '../../types';
+import { type ShapeJSXElement, type ShapeRecordProps, parseJSXShape } from '../Shape';
+import { createViewModifierEventListener } from '../modifiers/utils';
 
 /**
- * Colors for button's core elements.
+ * Colors for button elements.
  */
-export type ButtonElementColors = {
-  containerColor?: string;
-  contentColor?: string;
-  disabledContainerColor?: string;
-  disabledContentColor?: string;
+export type ButtonColors = {
+  containerColor?: ColorValue;
+  contentColor?: ColorValue;
+  disabledContainerColor?: ColorValue;
+  disabledContentColor?: ColorValue;
+};
+
+/**
+ * Content padding for the button's inner content.
+ * All values are in density-independent pixels (dp).
+ */
+export type ButtonContentPadding = {
+  start?: number;
+  top?: number;
+  end?: number;
+  bottom?: number;
 };
 
 export type ButtonProps = {
   /**
-   * A callback that is called when the button is pressed.
+   * Callback that is called when the button is clicked.
    */
-  onPress?: () => void;
+  onClick?: () => void;
   /**
-   * A string describing the system image to display in the button.
-   * Uses Material Icons on Android.
+   * Whether the button is enabled for user interaction.
+   * @default true
    */
-  systemImage?: MaterialIcon;
+  enabled?: boolean;
   /**
-   * The button variant.
+   * Colors for button elements.
    */
-  variant?: ButtonVariant;
+  colors?: ButtonColors;
   /**
-   * Additional styles to apply to the button.
+   * The padding between the button container and its content.
+   * Use this to adjust internal spacing, for example when adding a leading icon
    */
-  style?: StyleProp<ViewStyle>;
+  contentPadding?: ButtonContentPadding;
   /**
-   * The text to display inside the button.
+   * The shape of the button.
    */
-  children: string;
+  shape?: ShapeJSXElement;
   /**
-   * Colors for button's core elements.
-   * @platform android
+   * Modifiers for the component.
    */
-  elementColors?: ButtonElementColors;
+  modifiers?: ModifierConfig[];
   /**
-   * Button color.
+   * Content to display inside the button.
    */
-  color?: string;
-  /**
-   * Disabled state of the button.
-   */
-  disabled?: boolean;
-
-  /** Modifiers for the component */
-  modifiers?: ExpoModifier[];
+  children: React.ReactNode;
 };
 
-/**
- * @hidden
- */
-export type NativeButtonProps = Omit<
-  ButtonProps,
-  'role' | 'onPress' | 'children' | 'systemImage'
-> & {
-  text: string;
-  systemImage?: string;
+type NativeButtonProps = Omit<ButtonProps, 'onClick' | 'shape' | 'children'> & {
+  shape?: ShapeRecordProps;
+  children?: React.ReactNode;
 } & ViewEvent<'onButtonPressed', void>;
 
-// We have to work around the `role` and `onPress` props being reserved by React Native.
-const ButtonNativeView: React.ComponentType<NativeButtonProps> = requireNativeView(
-  'ExpoUI',
-  'Button'
-);
-
 /**
  * @hidden
  */
-export function transformButtonProps(props: ButtonProps): NativeButtonProps {
-  const { children, onPress, systemImage, ...restProps } = props;
+export function transformButtonProps(props: Omit<ButtonProps, 'children'>): NativeButtonProps {
+  const { onClick, shape, modifiers, ...restProps } = props;
   return {
+    modifiers,
+    ...(modifiers ? createViewModifierEventListener(modifiers) : undefined),
     ...restProps,
-    text: children ?? '',
-    systemImage,
-    onButtonPressed: onPress,
-    // @ts-expect-error
-    modifiers: props.modifiers?.map((m) => m.__expo_shared_object_id__),
-    elementColors: props.elementColors
-      ? props.elementColors
-      : props.color
-        ? {
-            containerColor: props.color,
-          }
-        : undefined,
+    enabled: props.enabled ?? true,
+    shape: parseJSXShape(shape),
+    onButtonPressed: onClick ? () => onClick() : undefined,
   };
 }
 
-/**
- * Displays a native button component.
- */
-export function Button(props: ButtonProps) {
-  // Min height from https://m3.material.io/components/buttons/specs, minWidth
-  return (
-    <ButtonNativeView
-      {...transformButtonProps(props)}
-      style={StyleSheet.compose({ minWidth: 80, minHeight: 40 }, props.style)}
-    />
-  );
+function createButtonComponent(name: string) {
+  const NativeView: React.ComponentType<NativeButtonProps> = requireNativeView('ExpoUI', name);
+
+  function Component(props: ButtonProps) {
+    const { children, ...restProps } = props;
+    return <NativeView {...transformButtonProps(restProps)}>{children}</NativeView>;
+  }
+  Component.displayName = name;
+  return Component;
 }
+
+/**
+ * A filled button component.
+ */
+export const Button = createButtonComponent('Button');
+
+/**
+ * A filled tonal button component.
+ */
+export const FilledTonalButton = createButtonComponent('FilledTonalButton');
+
+/**
+ * An outlined button component.
+ */
+export const OutlinedButton = createButtonComponent('OutlinedButton');
+
+/**
+ * An elevated button component.
+ */
+export const ElevatedButton = createButtonComponent('ElevatedButton');
+
+/**
+ * A text button component.
+ */
+export const TextButton = createButtonComponent('TextButton');

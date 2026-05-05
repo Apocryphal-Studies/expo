@@ -51,6 +51,7 @@ public:
     jboolean takesOwner,
     jboolean enumerable,
     jni::alias_ref<jni::JArrayClass<ExpectedType>> expectedArgTypes,
+    jint cppReturnType,
     jni::alias_ref<JNIFunctionBody::javaobject> body
   );
 
@@ -72,6 +73,7 @@ public:
   void registerClass(
     jni::alias_ref<jstring> name,
     jni::alias_ref<JSDecoratorsBridgingObject::javaobject> jsDecoratorsBridgingObject,
+    jni::alias_ref<JSDecoratorsBridgingObject::javaobject> jsDecoratorsConstructor,
     jboolean takesOwner,
     jni::alias_ref<jclass> ownerClass,
     jboolean isSharedRef,
@@ -84,6 +86,13 @@ public:
    * @return vector of unique pointers to decorators
    */
   std::vector<std::unique_ptr<JSDecorator>> bridge();
+
+  /**
+   * Returns the class decorator, or nullptr if none was registered.
+   */
+  JSClassesDecorator* getClassDecorator() const {
+    return classDecorator.get();
+  }
 
 private:
   friend HybridBase;

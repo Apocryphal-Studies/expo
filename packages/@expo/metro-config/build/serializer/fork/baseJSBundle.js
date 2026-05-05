@@ -90,6 +90,7 @@ function baseJSBundleWithDependencies(entryPoint, preModules, dependencies, opti
         asyncRequireModulePath: options.asyncRequireModulePath,
         createModuleId: options.createModuleId,
         getRunModuleStatement: options.getRunModuleStatement,
+        globalPrefix: options.globalPrefix,
         inlineSourceMap: options.inlineSourceMap,
         runBeforeMainModule: options.runBeforeMainModule,
         runModule: options.runModule,
@@ -134,9 +135,9 @@ function baseJSBundleWithDependencies(entryPoint, preModules, dependencies, opti
         post: postCode,
         modules: mods.map(([id, code]) => [
             id,
-            typeof code === 'number' ? code : code.src,
+            typeof code === 'number' ? code : code?.src,
         ]),
-        paths: Object.fromEntries(mods.filter(([id, code]) => typeof code !== 'number' && Object.keys(code.paths).length).map(([id, code]) => [id, code.paths])),
+        paths: Object.fromEntries(mods.filter(([id, code]) => typeof code !== 'number' && Object.keys(code?.paths ?? {}).length).map(([id, code]) => [id, code.paths])),
     };
 }
 //# sourceMappingURL=baseJSBundle.js.map

@@ -10,7 +10,11 @@ const inline_env_vars_1 = require("./inline-env-vars");
 const lazyImports_1 = require("./lazyImports");
 const restricted_react_api_plugin_1 = require("./restricted-react-api-plugin");
 const server_actions_plugin_1 = require("./server-actions-plugin");
+const server_data_loaders_plugin_1 = require("./server-data-loaders-plugin");
+const server_metadata_plugin_1 = require("./server-metadata-plugin");
 const use_dom_directive_plugin_1 = require("./use-dom-directive-plugin");
+const resolveModule_1 = require("./utils/resolveModule");
+const widgets_plugin_1 = require("./widgets-plugin");
 function getOptions(options, platform) {
     const tag = platform === 'web' ? 'web' : 'native';
     return {
@@ -29,6 +33,7 @@ function babelPresetExpo(api, options = {}) {
     const isReactServer = api.caller(common_1.getIsReactServer);
     const isFastRefreshEnabled = api.caller(common_1.getIsFastRefreshEnabled);
     const isReactCompilerEnabled = api.caller(common_1.getReactCompiler);
+    const isDomComponent = api.caller(common_1.getIsDomComponent);
     const metroSourceType = api.caller(common_1.getMetroSourceType);
     const baseUrl = api.caller(common_1.getBaseUrl);
     const supportsStaticESM = api.caller((caller) => caller?.supportsStaticESM);
@@ -42,9 +47,11 @@ function babelPresetExpo(api, options = {}) {
     if (!platform && isWebpack) {
         platform = 'web';
     }
-    // Use the simpler babel preset for web and server environments (both web and native SSR).
-    const isModernEngine = platform === 'web' || isServerEnv;
     const platformOptions = getOptions(options, platform);
+    // Use the simpler babel preset for web and server environments (both web and native SSR).
+    // For DOM components, the webview may be an Android factory WebView that doesn't support many modern JavaScript features,
+    // so we need to use the more compatible preset for web regardless.
+    const isModernEngine = (platform === 'web' || isServerEnv) && !isDomComponent;
     // If the input is a script, we're unable to add any dependencies. Since the @babel/runtime transformer
     // adds extra dependencies (requires/imports) we need to disable it
     if (metroSourceType === 'script') {
@@ -63,7 +70,7 @@ function babelPresetExpo(api, options = {}) {
             platformOptions.disableImportExportTransform = supportsStaticESM ?? false;
         }
     }
-    if (platformOptions.unstable_transformProfile == null) {
+    if (platformOptions.unstable_transformProfile == null && !isDomComponent) {
         platformOptions.unstable_transformProfile = engine === 'hermes' ? 'hermes-stable' : 'default';
     }
     // Note that if `options.lazyImports` is not set (i.e., `null` or `undefined`),
@@ -79,9 +86,19 @@ function babelPresetExpo(api, options = {}) {
         !isServerEnv &&
         // Give users the ability to opt-out of the feature, per-platform.
         platformOptions['react-compiler'] !== false) {
-        if (!(0, common_1.hasModule)('babel-plugin-react-compiler')) {
-            throw new Error('The `babel-plugin-react-compiler` must be installed before you can use React Compiler.');
-        }
+        const reactCompilerOptions = platformOptions['react-compiler'];
+        const reactCompilerOptOutDirectives = new Set([
+            // We need to opt-out for our widgets, since they're stringified functions that output Swift UI JSX
+            'widget',
+            // We need to manually include the default opt-out directives, since they get overridden
+            // See:
+            // - https://github.com/facebook/react/blob/e0cc720/compiler/packages/babel-plugin-react-compiler/src/Entrypoint/Program.ts#L48C1-L48C77
+            // - https://github.com/facebook/react/blob/e0cc720/compiler/packages/babel-plugin-react-compiler/src/Entrypoint/Program.ts#L69-L86
+            'use no memo',
+            'use no forget',
+            // Add the user's override but preserve defaults above to avoid the pitfall of them being removed
+            ...(reactCompilerOptions?.customOptOutDirectives ?? []),
+        ]);
         extraPlugins.push([
             require('babel-plugin-react-compiler'),
             {
@@ -91,7 +108,9 @@ function babelPresetExpo(api, options = {}) {
                     ...(platformOptions['react-compiler']?.environment ?? {}),
                 },
                 panicThreshold: isDev ? undefined : 'NONE',
-                ...platformOptions['react-compiler'],
+                ...reactCompilerOptions,
+                // See: https://github.com/facebook/react/blob/074d96b/compiler/packages/babel-plugin-react-compiler/src/Entrypoint/Options.ts#L160-L163
+                customOptOutDirectives: [...reactCompilerOptOutDirectives],
             },
         ]);
     }
@@ -106,10 +125,7 @@ function babelPresetExpo(api, options = {}) {
         ]);
     }
     else if (!isModernEngine) {
-        // This is added back on hermes to ensure the react-jsx-dev plugin (`@babel/preset-react`) works as expected when
-        // JSX is used in a function body. This is technically not required in production, but we
-        // should retain the same behavior since it's hard to debug the differences.
-        extraPlugins.push(require('@babel/plugin-transform-parameters'), 
+        extraPlugins.push(
         // Add support for class static blocks.
         [require('@babel/plugin-transform-class-static-block'), { loose: true }]);
     }
@@ -163,8 +179,16 @@ function babelPresetExpo(api, options = {}) {
     if (bundler !== 'webpack') {
         extraPlugins.push(expo_inline_manifest_plugin_1.expoInlineManifestPlugin);
     }
-    if ((0, common_1.hasModule)('expo-router')) {
+    if ((0, resolveModule_1.hasModule)(api, 'expo-router/package.json')) {
         extraPlugins.push(expo_router_plugin_1.expoRouterBabelPlugin);
+        extraPlugins.push(server_metadata_plugin_1.serverMetadataPlugin);
+        // Process `loader()` functions for client, loader and server bundles (excluding RSC)
+        // - Client bundles: Remove loader exports, they run on server only
+        // - Server bundles: Keep loader exports (needed for SSG)
+        // - Loader-only bundles: Keep only loader exports, remove everything else
+        if (!isReactServer) {
+            extraPlugins.push(server_data_loaders_plugin_1.serverDataLoadersPlugin);
+        }
     }
     extraPlugins.push(client_module_proxy_plugin_1.reactClientReferencesPlugin);
     // Ensure these only run when the user opts-in to bundling for a react server to prevent unexpected behavior for
@@ -179,19 +203,25 @@ function babelPresetExpo(api, options = {}) {
     }
     // This plugin is fine to run whenever as the server-only imports were introduced as part of RSC and shouldn't be used in any client code.
     extraPlugins.push(environment_restricted_imports_1.environmentRestrictedImportsPlugin);
-    if (isFastRefreshEnabled) {
+    // Transform widget component JSX expressions to capture widget components for native-side evaluation.
+    // This enables the native side to re-evaluate widget components with updated props without re-sending the entire layout.
+    if ((0, resolveModule_1.hasModule)(api, 'expo-widgets/package.json')) {
+        extraPlugins.push(widgets_plugin_1.widgetsPlugin);
+    }
+    if (platformOptions.enableReactFastRefresh ||
+        (isFastRefreshEnabled && platformOptions.enableReactFastRefresh !== false)) {
         extraPlugins.push([
             require('react-refresh/babel'),
             {
-                // We perform the env check to enable `isFastRefreshEnabled`.
-                skipEnvCheck: true,
+                // We perform the env check to enable `isFastRefreshEnabled`, unless the plugin is force-enabled
+                skipEnvCheck: platformOptions.enableReactFastRefresh !== true,
             },
         ]);
     }
     if (platformOptions.disableImportExportTransform) {
         extraPlugins.push([require('./detect-dynamic-exports').detectDynamicExports]);
     }
-    const polyfillImportMeta = platformOptions.unstable_transformImportMeta ?? isServerEnv;
+    const polyfillImportMeta = platformOptions.transformImportMeta !== false;
     extraPlugins.push((0, import_meta_transform_plugin_1.expoImportMetaTransformPluginFactory)(polyfillImportMeta === true));
     return {
         presets: [
@@ -243,11 +273,28 @@ function babelPresetExpo(api, options = {}) {
                 // plugin is run after the TypeScript plugins. This is normally handled by the combination of standard `@babel/preset-env` and `@babel/preset-typescript` but React Native
                 // doesn't do that and we can't rely on Hermes spec compliance enough to use standard presets.
                 const babelPresetReactNativeEnv = getPreset(null, presetOpts);
-                // Add the `@babel/plugin-transform-export-namespace-from` plugin to the preset but ensure it runs after
-                // the TypeScript plugins to ensure namespace type exports (TypeScript 5.0+) `export type * as Types from './module';`
-                // are stripped before the transform. Otherwise the transform will extraneously include the types as syntax.
                 babelPresetReactNativeEnv.overrides.push({
-                    plugins: [require('./babel-plugin-transform-export-namespace-from')],
+                    plugins: [
+                        // Add the `@babel/plugin-transform-export-namespace-from` plugin to the preset but ensure it runs after
+                        // the TypeScript plugins to ensure namespace type exports (TypeScript 5.0+) `export type * as Types from './module';`
+                        // are stripped before the transform. Otherwise the transform will extraneously include the types as syntax.
+                        require('./babel-plugin-transform-export-namespace-from'),
+                        ...(isDomComponent
+                            ? [
+                                // These plugins are required to support the older JavaScript environment of Android factory WebViews.
+                                // For example Android 9 and Chromium 66.
+                                // callsite: https://github.com/expo/expo/blob/fa2c26e39549edc144657c50a189271ca56d1ab9/packages/%40expo/log-box/src/LogBox.ts#L88
+                                [require('@babel/plugin-transform-optional-chaining'), { loose: true }],
+                                // callsite: https://github.com/facebook/metro/blob/7446b90ea53fa0173256da690a01df12e67b0deb/packages/metro-runtime/src/polyfills/require.js#L97
+                                [require('@babel/plugin-transform-nullish-coalescing-operator'), { loose: true }],
+                                // callsite: https://github.com/expo/expo/blob/fa2c26e39549edc144657c50a189271ca56d1ab9/packages/%40expo/log-box/src/Data/LogBoxData.tsx#L404
+                                [
+                                    require('@babel/plugin-transform-logical-assignment-operators'),
+                                    { loose: true },
+                                ],
+                            ]
+                            : []),
+                    ],
                 });
                 return babelPresetReactNativeEnv;
             })(),
@@ -283,16 +330,37 @@ function babelPresetExpo(api, options = {}) {
                 require('@babel/plugin-proposal-decorators'),
                 platformOptions.decorators ?? { legacy: true },
             ],
-            // Automatically add `react-native-reanimated/plugin` when the package is installed.
-            // TODO: Move to be a customTransformOption.
-            (0, common_1.hasModule)('react-native-worklets') &&
-                platformOptions.worklets !== false &&
-                platformOptions.reanimated !== false
-                ? [require('react-native-worklets/plugin')]
-                : (0, common_1.hasModule)('react-native-reanimated') &&
-                    platformOptions.reanimated !== false && [require('react-native-reanimated/plugin')],
-        ].filter(Boolean),
+            // Automatically add worklets or reanimated plugin when package is installed.
+            (() => {
+                if (platformOptions.worklets !== false && platformOptions.reanimated !== false) {
+                    const workletsPlugin = (0, resolveModule_1.resolveModule)(api, 'react-native-worklets/plugin');
+                    if (workletsPlugin) {
+                        return [require(workletsPlugin)];
+                    }
+                }
+                if (platformOptions.reanimated !== false) {
+                    const reanimatedPlugin = (0, resolveModule_1.resolveModule)(api, 'react-native-reanimated/plugin');
+                    if (reanimatedPlugin) {
+                        return [require(reanimatedPlugin)];
+                    }
+                }
+                return null;
+            })(),
+            // Automatically add the `@expo/ui` plugin when the package is installed.
+            // Independent of reanimated/worklets — must live in its own IIFE so the
+            // earlier fallback chain doesn't short-circuit before reaching it.
+            (() => {
+                if (platformOptions.expoUi === false)
+                    return null;
+                const plugin = (0, resolveModule_1.resolveModule)(api, '@expo/ui/babel-plugin');
+                if (plugin) {
+                    return [require(plugin)];
+                }
+                return null;
+            })(),
+        ].filter((x) => !!x),
     };
 }
 exports.default = babelPresetExpo;
 module.exports = babelPresetExpo;
+//# sourceMappingURL=index.js.map

@@ -1,20 +1,16 @@
 package expo.modules.kotlin.types
 
 import android.os.Bundle
-import expo.modules.kotlin.types.ReturnTypeProvider.types
-import expo.modules.kotlin.types.folly.FollyDynamicExtensionConverter
-import kotlin.collections.set
-import kotlin.reflect.KClass
+import expo.modules.kotlin.records.formatters.FormattedRecord
 import kotlin.time.Duration
-import kotlin.time.DurationUnit
 
 object ReturnTypeProvider {
-  val types = mutableMapOf<KClass<*>, ReturnType>()
+  val types = mutableMapOf<Class<*>, ReturnType>()
 }
 
 inline fun <reified T> ReturnTypeProvider.get(): ReturnType {
-  return types[T::class] ?: ReturnType(T::class).also {
-    types[T::class] = it
+  return types[T::class.java] ?: ReturnType(T::class.java).also {
+    types[T::class.java] = it
   }
 }
 
@@ -22,186 +18,44 @@ inline fun <reified T> toReturnType(): ReturnType {
   return ReturnTypeProvider.get<T>()
 }
 
-interface ExperimentalJSTypeConverter<T> {
-  fun convertToJS(value: Any?): Any?
-
-  class PassThroughConverter : ExperimentalJSTypeConverter<Any> {
-    override fun convertToJS(value: Any?): Any? {
-      return value
-    }
-  }
-
-  class BundleConverter : ExperimentalJSTypeConverter<Bundle> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Bundle?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class ArrayConverter : ExperimentalJSTypeConverter<Array<*>> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Array<*>?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class IntArrayConverter : ExperimentalJSTypeConverter<IntArray> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<IntArray?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class FloatArrayConverter : ExperimentalJSTypeConverter<FloatArray> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<FloatArray?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class DoubleArrayConverter : ExperimentalJSTypeConverter<DoubleArray> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<DoubleArray?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class BooleanArrayConverter : ExperimentalJSTypeConverter<BooleanArray> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<BooleanArray?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class ByteArrayConverter : ExperimentalJSTypeConverter<ByteArray> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<ByteArray?>(value)
-      return value?.let { FollyDynamicExtensionConverter.put(it) }
-    }
-  }
-
-  class MapConverter : ExperimentalJSTypeConverter<Map<*, *>> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Map<*, *>?>(value)
-      return value?.toJSValueExperimental()
-    }
-  }
-
-  class EnumConverter : ExperimentalJSTypeConverter<Enum<*>> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Enum<*>?>(value)
-      return value?.toJSValue()
-    }
-  }
-
-  class RecordConverter : ExperimentalJSTypeConverter<expo.modules.kotlin.records.Record> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<expo.modules.kotlin.records.Record?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class URIConverter : ExperimentalJSTypeConverter<java.net.URI> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<java.net.URI?>(value)
-      return value?.toJSValue()
-    }
-  }
-
-  class URLConverter : ExperimentalJSTypeConverter<java.net.URL> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<java.net.URL?>(value)
-      return value?.toJSValue()
-    }
-  }
-
-  class AndroidUriConverter : ExperimentalJSTypeConverter<android.net.Uri> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<android.net.Uri?>(value)
-      return value?.toJSValue()
-    }
-  }
-
-  class FileConverter : ExperimentalJSTypeConverter<java.io.File> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<java.io.File?>(value)
-      return value?.toJSValue()
-    }
-  }
-
-  class PairConverter : ExperimentalJSTypeConverter<Pair<*, *>> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Pair<*, *>?>(value)
-      return value?.toJSValue(JSTypeConverter.DefaultContainerProvider)
-    }
-  }
-
-  class LongConverter : ExperimentalJSTypeConverter<Long> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Long?>(value)
-      return value?.toDouble()
-    }
-  }
-
-  class DurationConverter : ExperimentalJSTypeConverter<Duration> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Duration?>(value)
-      return value?.toDouble(DurationUnit.SECONDS)
-    }
-  }
-
-  class RawTypedArrayHolderConverter : ExperimentalJSTypeConverter<expo.modules.kotlin.typedarray.RawTypedArrayHolder> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<expo.modules.kotlin.typedarray.RawTypedArrayHolder?>(value)
-      return value?.rawArray
-    }
-  }
-
-  class CollectionConverter : ExperimentalJSTypeConverter<Collection<*>> {
-    override fun convertToJS(value: Any?): Any? {
-      enforceType<Collection<*>?>(value)
-      return value?.toJSValueExperimental()
-    }
-  }
-
-  class AnyConverter : ExperimentalJSTypeConverter<Any> {
-    override fun convertToJS(value: Any?): Any? {
-      return JSTypeConverter.convertToJSValue(value, useExperimentalConverter = true)
-    }
-  }
-}
-
 class ReturnType(
-  private val klass: KClass<*>
+  private val klass: Class<*>
 ) {
-  private val converter: ExperimentalJSTypeConverter<*> = run {
+
+  private val converter: JSTypeConverter<*> = run {
+    // Kotlin thinks that Duration is represented as Long and Duration::class.java will return Long::class.java
+    // which is already handled. However, it's not 100% true - the value is represented by the Long, but
+    // ::class.java will return kotlin.time.Duration. It was verified in the generated bytecode.
+    // This warning is likely a bug in the compiler.
+    @Suppress("KotlinConstantConditions")
     val directConverter = when (klass) {
-      Unit::class -> ExperimentalJSTypeConverter.PassThroughConverter()
-      Bundle::class -> ExperimentalJSTypeConverter.BundleConverter()
-      IntArray::class -> ExperimentalJSTypeConverter.IntArrayConverter()
-      FloatArray::class -> ExperimentalJSTypeConverter.FloatArrayConverter()
-      DoubleArray::class -> ExperimentalJSTypeConverter.DoubleArrayConverter()
-      BooleanArray::class -> ExperimentalJSTypeConverter.BooleanArrayConverter()
-      ByteArray::class -> ExperimentalJSTypeConverter.ByteArrayConverter()
-      java.net.URI::class -> ExperimentalJSTypeConverter.URIConverter()
-      java.net.URL::class -> ExperimentalJSTypeConverter.URLConverter()
-      android.net.Uri::class -> ExperimentalJSTypeConverter.AndroidUriConverter()
-      java.io.File::class -> ExperimentalJSTypeConverter.FileConverter()
-      Pair::class -> ExperimentalJSTypeConverter.PairConverter()
-      Long::class -> ExperimentalJSTypeConverter.LongConverter()
-      Duration::class -> ExperimentalJSTypeConverter.DurationConverter()
-      Any::class -> ExperimentalJSTypeConverter.AnyConverter()
+      Unit::class.java -> JSTypeConverter.PassThroughConverter()
+      Bundle::class.java -> JSTypeConverter.BundleConverter()
+      IntArray::class.java -> JSTypeConverter.IntArrayConverter()
+      FloatArray::class.java -> JSTypeConverter.FloatArrayConverter()
+      DoubleArray::class.java -> JSTypeConverter.DoubleArrayConverter()
+      BooleanArray::class.java -> JSTypeConverter.BooleanArrayConverter()
+      ByteArray::class.java -> JSTypeConverter.ByteArrayConverter()
+      java.net.URI::class.java -> JSTypeConverter.URIConverter()
+      java.net.URL::class.java -> JSTypeConverter.URLConverter()
+      android.net.Uri::class.java -> JSTypeConverter.AndroidUriConverter()
+      java.io.File::class.java -> JSTypeConverter.FileConverter()
+      Pair::class.java -> JSTypeConverter.PairConverter()
+      Long::class.java -> JSTypeConverter.LongConverter()
+      Duration::class.java -> JSTypeConverter.DurationConverter()
+      Any::class.java -> JSTypeConverter.AnyConverter()
       else -> null
     }
 
     directConverter ?: when {
-      inheritFrom<Map<*, *>>() -> ExperimentalJSTypeConverter.MapConverter()
-      inheritFrom<Enum<*>>() -> ExperimentalJSTypeConverter.EnumConverter()
-      inheritFrom<expo.modules.kotlin.records.Record>() -> ExperimentalJSTypeConverter.RecordConverter()
-      inheritFrom<expo.modules.kotlin.typedarray.RawTypedArrayHolder>() -> ExperimentalJSTypeConverter.RawTypedArrayHolderConverter()
-      inheritFrom<Array<*>>() -> ExperimentalJSTypeConverter.ArrayConverter()
-      inheritFrom<Collection<*>>() -> ExperimentalJSTypeConverter.CollectionConverter()
-      else -> ExperimentalJSTypeConverter.PassThroughConverter()
+      inheritFrom<Map<*, *>>() -> JSTypeConverter.MapConverter()
+      inheritFrom<Enum<*>>() -> JSTypeConverter.EnumConverter()
+      inheritFrom<expo.modules.kotlin.records.Record>() -> JSTypeConverter.RecordConverter()
+      inheritFrom<FormattedRecord<*>>() -> JSTypeConverter.FormattedRecordConverter()
+      inheritFrom<expo.modules.kotlin.typedarray.RawTypedArrayHolder>() -> JSTypeConverter.RawTypedArrayHolderConverter()
+      inheritFrom<Array<*>>() -> JSTypeConverter.ArrayConverter()
+      inheritFrom<Collection<*>>() -> JSTypeConverter.CollectionConverter()
+      else -> JSTypeConverter.PassThroughConverter()
     }
   }
 
@@ -209,8 +63,10 @@ class ReturnType(
     return converter.convertToJS(value)
   }
 
+  val cppType: expo.modules.kotlin.jni.ReturnType
+    get() = converter.returnType
+
   internal inline fun <reified T> inheritFrom(): Boolean {
-    val jClass = klass.java
-    return T::class.java.isAssignableFrom(jClass)
+    return T::class.java.isAssignableFrom(klass)
   }
 }

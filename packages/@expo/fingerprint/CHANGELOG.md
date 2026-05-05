@@ -6,9 +6,77 @@
 
 ### 🎉 New features
 
+- Include expo-font plugin font files in fingerprint hash calculation ([#43575](https://github.com/expo/expo/pull/43575) by [@vonovak](https://github.com/vonovak))
+
 ### 🐛 Bug fixes
 
+- Use `expo-splash-screen` plugin config type and remove legacy `splash` properties from fingerprint sources. ([#44598](https://github.com/expo/expo/pull/44598) by [@zoontek](https://github.com/zoontek))
+
 ### 💡 Others
+
+## 0.16.5 — 2026-02-25
+
+### 💡 Others
+
+- Bump to `minimatch@^10.2.2` ([#43325](https://github.com/expo/expo/pull/43325) by [@kitten](https://github.com/kitten))
+
+## 0.16.4 — 2026-02-20
+
+### 🐛 Bug fixes
+
+- Fix resolution to `expo -> @expo/cli -> @expo/env` being unstable ([#42764](https://github.com/expo/expo/pull/42764) by [@kitten](https://github.com/kitten))
+
+## 0.16.3 — 2026-02-03
+
+### 💡 Others
+
+- Drop `p-limit` dependency ([#42487](https://github.com/expo/expo/pull/42487) by [@kitten](https://github.com/kitten))
+
+## 0.16.2 — 2026-01-26
+
+_This version does not introduce any user-facing changes._
+
+## 0.16.1 — 2026-01-22
+
+_This version does not introduce any user-facing changes._
+
+## 0.16.0 — 2026-01-21
+
+### 🐛 Bug fixes
+
+- Fixed unstable fingerprint from `expo-sqlite` and `expo-updates`. ([#40524](https://github.com/expo/expo/pull/40524) by [@kudo](https://github.com/kudo))
+
+## 0.15.4 - 2025-12-04
+
+### 💡 Others
+
+- Update to `glob@^13.0.0` ([#41079](https://github.com/expo/expo/pull/41079) by [@kitten](https://github.com/kitten))
+
+## 0.15.3 - 2025-11-03
+
+_This version does not introduce any user-facing changes._
+
+## 0.15.2 - 2025-10-20
+
+### 🐛 Bug fixes
+
+- Fixed the **package.json** file appears in fingerprint when loading from **app.config.js**. ([#40320](https://github.com/expo/expo/pull/40320) by [@kudo](https://github.com/kudo))
+- Fixed errors when `ios.icon` is an object in **app.json**. ([#40403](https://github.com/expo/expo/pull/40403) by [@kudo](https://github.com/kudo))
+- Ensure AAR file paths in expo fingerprint are relative for SDK 53 and later. ([#40319](https://github.com/expo/expo/pull/40319) by [@jonemilnik](https://github.com/jonemilnik))
+- Fixed unstable fingerprint from `shouldUsePublicationScriptPath`. ([#40412](https://github.com/expo/expo/pull/40412) by [@kudo](https://github.com/kudo))
+- Fixed unstable fingerprint for Google services files using EAS environment secrets. ([#40540](https://github.com/expo/expo/pull/40540) by [@kudo](https://github.com/kudo))
+
+## 0.15.1 — 2025-09-16
+
+### 🐛 Bug fixes
+
+- Fixed `expoConfigExternalFile` does not return normalized relative paths. ([#39708](https://github.com/expo/expo/pull/39708) by [@kudo](https://github.com/kudo))
+
+## 0.15.0 — 2025-09-10
+
+### 💡 Others
+
+- Remove dependency on `find-up` ([#39470](https://github.com/expo/expo/pull/39470) by [@kitten](https://github.com/kitten))
 
 ## 0.14.6 — 2025-09-02
 

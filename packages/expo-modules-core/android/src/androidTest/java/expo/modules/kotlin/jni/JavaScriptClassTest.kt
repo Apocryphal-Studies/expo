@@ -90,7 +90,7 @@ class JavaScriptClassTest {
       val jsObject = callClass("MySharedObject").getObject()
       val id = SharedObjectId(jsObject.getProperty(sharedObjectIdPropertyName).getInt())
 
-      val runtimeContext = jsiInterop.runtimeContextHolder.get()!!
+      val runtimeContext = jsiInterop.runtimeHolder.get()!!
       val (native, _) = runtimeContext.sharedObjectRegistry.pairs[id]!!
       Truth.assertThat(native).isSameInstanceAs(mySharedObject)
     }
@@ -115,6 +115,32 @@ class JavaScriptClassTest {
     }) {
       callClass("MySharedObject", "receiveThis")
       Truth.assertThat(wasCalled).isTrue()
+    }
+  }
+
+  @Test
+  fun shared_object_should_call_static_functions() {
+    class MySharedObject : SharedObject()
+
+    var wasCalled = false
+    var wasAsyncCalled = false
+    withSingleModule({
+      Class(MySharedObject::class) {
+        Constructor {
+          return@Constructor MySharedObject()
+        }
+        StaticFunction<Unit>("staticSyncFunction") {
+          wasCalled = true
+        }
+        StaticAsyncFunction<Unit>("staticAsyncFunction") {
+          wasAsyncCalled = true
+        }
+      }
+    }) {
+      callClassStatic("MySharedObject", "staticSyncFunction")
+      Truth.assertThat(wasCalled).isTrue()
+      callClassStaticAsync("MySharedObject", "staticAsyncFunction")
+      Truth.assertThat(wasAsyncCalled).isTrue()
     }
   }
 
@@ -155,7 +181,7 @@ class JavaScriptClassTest {
     }) {
       val jsObject = callClass("MySharedObject").getObject()
       id = SharedObjectId(jsObject.getProperty(sharedObjectIdPropertyName).getInt())
-      registry = jsiInterop.runtimeContextHolder.get()?.sharedObjectRegistry
+      registry = jsiInterop.runtimeHolder.get()?.sharedObjectRegistry
     }
 
     Truth.assertThat(registry!!.pairs[id!!]).isNull()

@@ -22,7 +22,13 @@ const DEF_OPTIONS = {
 it(`compiles React auto jsx import`, () => {
   const options = {
     ...DEF_OPTIONS,
-    caller: getCaller({ name: 'metro', engine: 'hermes', platform: 'ios', isDev: true }),
+    caller: getCaller({
+      name: 'metro',
+      engine: 'hermes',
+      platform: 'ios',
+      isDev: true,
+      isHMREnabled: true,
+    }),
   };
 
   const sourceCode = `
@@ -33,12 +39,18 @@ function App() {
     "var _jsxDevRuntime = require("react/jsx-dev-runtime");var _jsxFileName = "/unknown";
     function App() {
       return /*#__PURE__*/(0, _jsxDevRuntime.jsxDEV)("div", {}, void 0, false, { fileName: _jsxFileName, lineNumber: 3, columnNumber: 12 }, this);
-    }"
+    }_c = App;var _c;$RefreshReg$(_c, "App");"
   `);
 
   const productionOptions = {
     ...DEF_OPTIONS,
-    caller: getCaller({ name: 'metro', engine: 'hermes', platform: 'ios', isDev: false }),
+    caller: getCaller({
+      name: 'metro',
+      engine: 'hermes',
+      platform: 'ios',
+      isDev: false,
+      isHMREnabled: true,
+    }),
   };
   expect(babel.transform(sourceCode, productionOptions)!.code).toMatchInlineSnapshot(`
     "var _jsxRuntime = require("react/jsx-runtime");
@@ -51,7 +63,13 @@ function App() {
 it(`transforms React display name`, () => {
   const options = {
     ...DEF_OPTIONS,
-    caller: getCaller({ name: 'metro', engine: 'hermes', platform: 'ios', isDev: true }),
+    caller: getCaller({
+      name: 'metro',
+      engine: 'hermes',
+      platform: 'ios',
+      isDev: true,
+      isHMREnabled: true,
+    }),
   };
 
   // Ensure no duplication
@@ -79,6 +97,7 @@ describe('classic runtime', () => {
       caller: getCaller({
         name: 'babel-loader',
         isDev: true,
+        isHMREnabled: true,
       }),
     };
 
@@ -91,7 +110,7 @@ describe('classic runtime', () => {
 
       export default function App() {
         return /*#__PURE__*/React.createElement(View, { __self: this, __source: { fileName: _jsxFileName, lineNumber: 4, columnNumber: 12 } });
-      }"
+      }_c = App;var _c;$RefreshReg$(_c, "App");"
     `);
   });
   it(`compiles for Webpack in prod`, () => {
@@ -101,6 +120,7 @@ describe('classic runtime', () => {
       caller: getCaller({
         name: 'babel-loader',
         isDev: false,
+        isHMREnabled: true,
       }),
     };
 
@@ -126,6 +146,7 @@ describe('classic runtime', () => {
           name: 'metro',
           platform,
           isDev: true,
+          isHMREnabled: true,
         }),
       };
 
@@ -144,6 +165,7 @@ describe('classic runtime', () => {
           name: 'metro',
           platform,
           isDev: false,
+          isHMREnabled: true,
         }),
       };
 
@@ -167,6 +189,7 @@ it(`supports nested React components in destructured props in Metro + developmen
       platform: 'ios',
       engine: 'hermes',
       isDev: true,
+      isHMREnabled: true,
     }),
     retainLines: false,
   };
@@ -183,25 +206,27 @@ it(`supports nested React components in destructured props in Metro + developmen
   const code = babel.transform(sourceCode, options)!.code;
 
   expect(code).toMatch(/"react\/jsx-dev-runtime"/);
-  expect(code).toMatch(/var _ref\$button/);
   expect(code).toMatchInlineSnapshot(`
     "var _jsxDevRuntime = require("react/jsx-dev-runtime");
     var _jsxFileName = "/unknown";
-    function Foo(_ref) {
-      var _ref$button = _ref.button,
-        button = _ref$button === void 0 ? () => {
-          return /*#__PURE__*/(0, _jsxDevRuntime.jsxDEV)(Text, {
-            children: "Foo"
-          }, void 0, false, {
-            fileName: _jsxFileName,
-            lineNumber: 4,
-            columnNumber: 14
-          }, this);
-        } : _ref$button;
+    function Foo({
+      button = () => {
+        return /*#__PURE__*/(0, _jsxDevRuntime.jsxDEV)(Text, {
+          children: "Foo"
+        }, void 0, false, {
+          fileName: _jsxFileName,
+          lineNumber: 4,
+          columnNumber: 14
+        }, this);
+      }
+    }) {
       return /*#__PURE__*/(0, _jsxDevRuntime.jsxDEV)(_jsxDevRuntime.Fragment, {
         children: button()
       }, void 0, false);
-    }"
+    }
+    _c = Foo;
+    var _c;
+    $RefreshReg$(_c, "Foo");"
   `);
 });
 
@@ -220,6 +245,7 @@ describe('auto runtime (default)', () => {
       caller: getCaller({
         name: 'babel-loader',
         isDev: true,
+        isHMREnabled: true,
       }),
     };
 
@@ -232,7 +258,7 @@ describe('auto runtime (default)', () => {
 
       export default function App() {
         return /*#__PURE__*/_jsxDEV(View, {}, void 0, false, { fileName: _jsxFileName, lineNumber: 4, columnNumber: 12 }, this);
-      }"
+      }_c = App;var _c;$RefreshReg$(_c, "App");"
     `);
   });
   it(`compiles for Webpack in prod`, () => {
@@ -242,6 +268,7 @@ describe('auto runtime (default)', () => {
       caller: getCaller({
         name: 'babel-loader',
         isDev: false,
+        isHMREnabled: true,
       }),
     };
 
@@ -267,6 +294,7 @@ describe('auto runtime (default)', () => {
           name: 'metro',
           platform,
           isDev: true,
+          isHMREnabled: true,
         }),
       };
 
@@ -285,6 +313,7 @@ describe('auto runtime (default)', () => {
           name: 'metro',
           platform,
           isDev: false,
+          isHMREnabled: true,
         }),
       };
 

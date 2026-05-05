@@ -9,11 +9,17 @@ import TabIcon from '../components/TabIcon';
 import getStackNavWithConfig from '../navigation/StackConfig';
 import { AudioScreens } from '../screens/Audio/AudioScreen';
 import { BlobScreens } from '../screens/Blob/BlobScreen';
+import { CalendarsNextScreens } from '../screens/CalendarsNextScreen';
 import { CalendarsScreens } from '../screens/CalendarsScreen';
+import { apiScreensToListElements } from '../screens/ComponentListScreen';
 import { ContactsScreens } from '../screens/Contacts/ContactsScreen';
+import { ContactsNextScreens } from '../screens/Contacts@Next/ContactsNextScreen';
+import { CryptoScreens } from '../screens/Crypto/CryptoScreen';
 import ExpoApis from '../screens/ExpoApisScreen';
+import { MediaLibraryScreens } from '../screens/MediaLibrary@Next/MediaLibraryScreens';
 import { ModulesCoreScreens } from '../screens/ModulesCore/ModulesCoreScreen';
-import { type ScreenApiItem, type ScreenConfig } from '../types/ScreenConfig';
+import { WorkletsScreens } from '../screens/Worklets/WorkletsScreen';
+import { type ScreenConfig } from '../types/ScreenConfig';
 
 const Stack = createNativeStackNavigator();
 
@@ -24,6 +30,13 @@ export const ScreensList: ScreenConfig[] = [
     },
     name: 'ModulesCore',
     options: { title: 'Expo Modules Core' },
+  },
+  {
+    getComponent() {
+      return optionalRequire(() => require('../screens/MediaLibrary@Next/MediaLibraryScreens'));
+    },
+    name: 'MediaLibrary@Next',
+    options: { title: 'MediaLibrary@Next' },
   },
   {
     getComponent() {
@@ -47,7 +60,7 @@ export const ScreensList: ScreenConfig[] = [
     getComponent() {
       return optionalRequire(() => require('../screens/CellularScreen'));
     },
-    name: 'Cellular',
+    name: 'Cellular (device-only)',
   },
   {
     getComponent() {
@@ -62,18 +75,27 @@ export const ScreensList: ScreenConfig[] = [
     name: 'ActionSheet',
     options: { title: 'Action Sheet' },
   },
+  // TODO: fix this, module not available in Expo Go
+  // {
+  //   getComponent() {
+  //     return optionalRequire(() => require('../screens/AgeRangeScreen'));
+  //   },
+  //   name: 'AgeRange',
+  //   options: { title: 'Age Range' },
+  // },
   {
     getComponent() {
       return optionalRequire(() => require('../screens/AppearanceScreen'));
     },
     name: 'Appearance',
   },
-  {
-    getComponent() {
-      return optionalRequire(() => require('../screens/AppIntegrity/AppIntegrityScreen'));
-    },
-    name: 'AppIntegrity',
-  },
+  // TODO: fix this, erroring in release in Expo Go
+  // {
+  //   getComponent() {
+  //     return optionalRequire(() => require('../screens/AppIntegrity/AppIntegrityScreen'));
+  //   },
+  //   name: 'AppIntegrity',
+  // },
   {
     getComponent() {
       return optionalRequire(() => require('../screens/AppleAuthenticationScreen'));
@@ -93,12 +115,13 @@ export const ScreensList: ScreenConfig[] = [
     },
     name: 'Audio',
   },
-  {
-    getComponent() {
-      return optionalRequire(() => require('../screens/AuthSession/AuthSessionScreen'));
-    },
-    name: 'AuthSession',
-  },
+  // TODO: fix this, erroring in release in Expo Go
+  // {
+  //   getComponent() {
+  //     return optionalRequire(() => require('../screens/AuthSession/AuthSessionScreen'));
+  //   },
+  //   name: 'AuthSession',
+  // },
   {
     getComponent() {
       return optionalRequire(() => require('../screens/Location/BackgroundLocationMapScreen'));
@@ -128,6 +151,12 @@ export const ScreensList: ScreenConfig[] = [
   },
   {
     getComponent() {
+      return optionalRequire(() => require('../screens/inlineModules/InlineModulesScreen'));
+    },
+    name: 'InlineModules',
+  },
+  {
+    getComponent() {
       return optionalRequire(() => require('../screens/Blob/BlobScreen'));
     },
     name: 'Blob',
@@ -136,7 +165,7 @@ export const ScreensList: ScreenConfig[] = [
     getComponent() {
       return optionalRequire(() => require('../screens/BrightnessScreen'));
     },
-    name: 'Brightness',
+    name: 'Brightness (device-only)',
   },
   {
     getComponent() {
@@ -164,6 +193,12 @@ export const ScreensList: ScreenConfig[] = [
   },
   {
     getComponent() {
+      return optionalRequire(() => require('../screens/FileSystemLegacyScreen'));
+    },
+    name: 'FileSystem@legacy',
+  },
+  {
+    getComponent() {
       return optionalRequire(() => require('../screens/FontScreen'));
     },
     name: 'Font',
@@ -183,6 +218,12 @@ export const ScreensList: ScreenConfig[] = [
   },
   {
     getComponent() {
+      return optionalRequire(() => require('../screens/CalendarsNextScreen'));
+    },
+    name: 'Calendars@next',
+  },
+  {
+    getComponent() {
       return optionalRequire(() => require('../screens/ConstantsScreen'));
     },
     name: 'Constants',
@@ -192,6 +233,13 @@ export const ScreensList: ScreenConfig[] = [
       return optionalRequire(() => require('../screens/Contacts/ContactsScreen'));
     },
     name: 'Contacts',
+  },
+  {
+    getComponent() {
+      return optionalRequire(() => require('../screens/Contacts@Next/ContactsNextScreen'));
+    },
+    name: 'Contacts@Next',
+    options: { title: 'Contacts@Next' },
   },
   {
     getComponent() {
@@ -276,7 +324,7 @@ export const ScreensList: ScreenConfig[] = [
   },
   {
     getComponent() {
-      return optionalRequire(() => require('../screens/CryptoScreen'));
+      return optionalRequire(() => require('../screens/Crypto/CryptoScreen'));
     },
     name: 'Crypto',
   },
@@ -418,6 +466,13 @@ export const ScreensList: ScreenConfig[] = [
   },
   {
     getComponent() {
+      return optionalRequire(() => require('../screens/Worklets/WorkletsScreen'));
+    },
+    name: 'Worklets integration',
+    route: 'worklets',
+  },
+  {
+    getComponent() {
       return optionalRequire(() => require('../screens/WebBrowser/WebBrowserScreen'));
     },
     name: 'WebBrowser',
@@ -439,17 +494,18 @@ export const ScreensList: ScreenConfig[] = [
 export const Screens: ScreenConfig[] = [
   ...ScreensList,
   ...ModulesCoreScreens,
+  ...MediaLibraryScreens,
   ...AudioScreens,
   ...BlobScreens,
   ...ContactsScreens,
+  ...ContactsNextScreens,
   ...CalendarsScreens,
+  ...CalendarsNextScreens,
+  ...CryptoScreens,
+  ...WorkletsScreens,
 ];
 
-export const screenApiItems: ScreenApiItem[] = ScreensList.map(({ name, route }) => ({
-  name,
-  route: '/apis/' + (route ?? name.toLowerCase()),
-  isAvailable: true,
-}));
+export const screenApiItems = apiScreensToListElements(ScreensList);
 
 function ExpoApisStackNavigator(props: { navigation: BottomTabNavigationProp<any> }) {
   const { theme } = useTheme();

@@ -5,42 +5,65 @@ description: Learn about rendering React DOM components in Expo native apps usin
 ---
 
 import { Collapsible } from '~/ui/components/Collapsible';
+import { FAQ } from '~/ui/components/FAQ';
+import { Prerequisites, Requirement } from '~/ui/components/Prerequisites';
 import { Terminal } from '~/ui/components/Snippet';
 import { Tabs, Tab } from '~/ui/components/Tabs';
-
-> **info** Available in **SDK 52 and above**.
 
 Expo offers a novel approach to work with modern web code directly in a native app via the `'use dom'` directive. This enables incremental migration for an entire website to a universal app by moving on a per-component basis.
 
 While the Expo native runtime generally does not support elements like `<div>` or `<img>`, there may be instances where you need to quickly incorporate web components. In such cases, DOM components provide a useful solution.
 
-## Prerequisites
+<Prerequisites>
+  <Requirement title="Expo CLI and the Expo Metro Config">
+    If you already run your project with `npx expo [command]` (for example, if you created it with `npx create-expo-app`), you're all set.
 
-<Collapsible summary="Your project must use Expo CLI and extend the Expo Metro Config">
+    If you don't have the `expo` package in your project yet, install it by running the command below and [opt in to using Expo CLI and Metro Config](/bare/installing-expo-modules/#configure-expo-cli-for-bundling-on-android-and-ios):
 
-If you already run your project with `npx expo [command]` (for example, if you created it with `npx create-expo-app`), then you're all set, and you can skip this step.
+    <Terminal cmd={['$ npx install-expo-modules@latest']} />
 
-If you don't have the `expo` package in your project yet, then install it by running the command below and [opt in to using Expo CLI and Metro Config](/bare/installing-expo-modules/#configure-expo-cli-for-bundling-on-android-and-ios):
+    If the command fails, refer to the [Installing Expo modules](/bare/installing-expo-modules/#manual-installation) guide.
 
-<Terminal cmd={['$ npx install-expo-modules@latest']} />
+  </Requirement>
+  <Requirement title="Expo Metro Runtime, React DOM, and React Native Web">
+    If you are using Expo Router and Expo Web, you can skip this step. Otherwise, install the following packages:
 
-If the command fails, refer to the [Installing Expo modules](/bare/installing-expo-modules/#manual-installation) guide.
+    <Terminal cmd={['$ npx expo install @expo/metro-runtime react-dom react-native-web']} />
 
-</Collapsible>
-
-<Collapsible summary="Expo Metro Runtime, React DOM, and React Native Web">
-
-If you are using Expo Router and Expo Web, you can skip this step. Otherwise, install the following packages:
-
-<Terminal cmd={['$ npx expo install @expo/metro-runtime react-dom react-native-web']} />
-
-</Collapsible>
+  </Requirement>
+</Prerequisites>
 
 ## Usage
+
+<Tabs>
+
+<Tab label="SDK 56 and later">
+
+DOM components use [`@expo/dom-webview`](https://www.npmjs.com/package/@expo/dom-webview) by default and no additional install is required.
+
+If you want to use `react-native-webview` instead, install it and opt out via the `dom` prop:
+
+<Terminal cmd={['$ npx expo install react-native-webview']} />
+
+```tsx App.tsx (native)
+import DOMComponent from './my-component';
+
+export default function App() {
+  return <DOMComponent dom={{ useExpoDOMWebView: false }} />;
+}
+```
+
+</Tab>
+
+<Tab label="SDK 55 and earlier">
 
 Install `react-native-webview` in your project:
 
 <Terminal cmd={['$ npx expo install react-native-webview']} />
+
+</Tab>
+
+</Tabs>
 
 To render a React component to the DOM, add the `'use dom'` directive to the top of the web component file:
 
@@ -180,7 +203,7 @@ Think of these functions like React Server Functions, but instead of residing on
 
 ## Passing refs
 
-> **important** This is experimental and may change in the future.
+> **important** This is in [alpha](/more/release-statuses/#alpha) and may change in the future.
 
 You can use the `useDOMImperativeHandle` hook inside a DOM component to accept ref calls from the native side. This hook is similar to React's [`useImperativeHandle`](https://react.dev/reference/react/useImperativeHandle) hook, but it does not need a ref object to be passed to it.
 
@@ -209,9 +232,9 @@ export default function App() {
 
 <Tabs>
 
-<Tab label="SDK 53 and above">
+<Tab label="SDK 53 and later">
 
-Expo SDK 53 and above use React 19. This means that the `ref` prop is passed to the component as a prop, and you can use it directly in the component.
+Expo SDK 53 and later use React 19. This means that the `ref` prop is passed to the component as a prop, and you can use it directly in the component.
 
 ```tsx my-component.tsx (web)
 'use dom';
@@ -245,9 +268,9 @@ export default function MyComponent(props: {
 
 </Tab>
 
-<Tab label="SDK 52 and below">
+<Tab label="SDK 52 and earlier">
 
-In Expo SDK 52 and below (React 18), use the legacy `forwardRef` function to access the `ref` handle.
+In Expo SDK 52 and earlier (React 18), use the legacy `forwardRef` function to access the `ref` handle.
 
 ```tsx my-component.tsx (web)
 'use dom';
@@ -287,12 +310,14 @@ React is meant to have a unilateral data flow, so the concept of using callbacks
 Since DOM components are used to run websites, you might need extra qualifiers to better support certain libraries. You can detect if a component is running in a DOM component with the following code:
 
 ```ts
-const IS_DOM = typeof ReactNativeWebView !== 'undefined';
+import { IS_DOM } from 'expo/dom';
 ```
+
+While `process.env.EXPO_OS` will always be web in a DOM component, you can detect the _top_ platform with `process.env.EXPO_DOM_HOST_OS`. This will be either `ios`, `android`, depending on the OS of the top-most native platform, and `undefined` on web.
 
 ## Public assets
 
-> **important** **Warning:** This is experimental and may change in the future. Public assets are not supported in EAS Update. Use `require()` to load local assets instead.
+> **important** **Warning:** This is in [alpha](/more/release-statuses/#alpha) and may change in the future. Public assets are not supported in EAS Update. Use `require()` to load local assets instead.
 
 The contents of the root **public** directory are copied to the native app's binary to support the use of public assets in DOM components. Since these public assets will be served from the local filesystem, use the `process.env.EXPO_BASE_URL` prefix to reference the correct path. For example:
 
@@ -512,16 +537,18 @@ While DOM components help with migration and moving quickly, we recommend using 
 
 ## Common questions
 
-### How to obtain a Secure Context in DOM components?
+<FAQ>
+
+<Collapsible summary="How to obtain a Secure Context in DOM components?">
 
 Some Web APIs require a [Secure Context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts) function correctly. For example, the [Clipboard API](https://developer.mozilla.org/en-US/docs/Web/API/Clipboard_API) is only available in secure contexts. A secure context means that remote resources must be served over HTTPS. [Learn more about features restricted to secure contexts](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts/features_restricted_to_secure_contexts).
 
 To ensure your DOM components run within a secure context, follow these guidelines:
 
 - **Release builds**: DOM components served using the `file://` scheme are provided a secure context by default.
-- **Debug builds**: When using development servers (which default to the `http:// `protocol), you can use [tunneling](/more/expo-cli/#tunneling) to serve DOM components over HTTPS.
+- **Debug builds**: When using development servers (which default to the `http://` protocol), you can use [tunneling](/more/expo-cli/#tunneling) to serve DOM components over HTTPS.
 
-<Collapsible summary="Example commands to tunnel DOM components over HTTPS">
+**Example commands to tunnel DOM components over HTTPS:**
 
 <Terminal
   cmd={[
@@ -541,3 +568,5 @@ To ensure your DOM components run within a secure context, follow these guidelin
 />
 
 </Collapsible>
+
+</FAQ>

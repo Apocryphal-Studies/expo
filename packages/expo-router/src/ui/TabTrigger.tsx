@@ -1,15 +1,16 @@
 import { Slot } from '@radix-ui/react-slot';
-import { TabNavigationState } from '@react-navigation/native';
-import { ReactNode, use, ReactElement, ComponentProps, useCallback } from 'react';
-import { View, StyleSheet, Pressable, PressableProps } from 'react-native';
+import type { ReactNode, ReactElement, ComponentProps } from 'react';
+import { use, useCallback } from 'react';
+import type { View, PressableProps } from 'react-native';
+import { StyleSheet, Pressable } from 'react-native';
 
 import { TabTriggerMapContext } from './TabContext';
-import { ExpoTabsResetValue } from './TabRouter';
 import type { TriggerMap } from './common';
 import { appendBaseUrl } from '../fork/getPathFromState';
 import { router } from '../imperative-api';
 import { shouldHandleMouseEvent } from '../link/useLinkToPathProps';
 import { stripGroupSegmentsFromPath } from '../matchers';
+import type { TabNavigationState } from '../react-navigation/native';
 import type { Href } from '../types';
 import { useNavigatorContext } from '../views/Navigator';
 
@@ -34,7 +35,7 @@ export type TabTriggerProps = PressablePropsWithoutFunctionChildren & {
   /**
    * Resets the route when switching to a tab.
    */
-  reset?: SwitchToOptions['reset'] | 'onLongPress';
+  resetOnFocus?: boolean;
 };
 
 export type TabTriggerOptions = {
@@ -67,10 +68,10 @@ const TabTriggerSlot = Slot as React.ForwardRefExoticComponent<TabTriggerSlotPro
  * </Tabs>
  * ```
  */
-export function TabTrigger({ asChild, name, href, reset = 'onFocus', ...props }: TabTriggerProps) {
+export function TabTrigger({ asChild, name, href, resetOnFocus, ...props }: TabTriggerProps) {
   const { trigger, triggerProps } = useTabTrigger({
     name,
-    reset,
+    resetOnFocus,
     ...props,
   });
 
@@ -111,9 +112,9 @@ export function isTabTrigger(
  */
 export type SwitchToOptions = {
   /**
-   * Navigate and reset the history.
+   * Navigate and reset the history on route focus.
    */
-  reset?: ExpoTabsResetValue;
+  resetOnFocus?: boolean;
 };
 
 export type Trigger = TriggerMap[string] & {
@@ -140,7 +141,7 @@ export type TriggerProps = {
  */
 export function useTabTrigger(options: TabTriggerProps): UseTabTriggerResult {
   const { state, navigation } = useNavigatorContext();
-  const { name, reset, onPress, onLongPress } = options;
+  const { name, resetOnFocus, onPress, onLongPress } = options;
   const triggerMap = use(TabTriggerMapContext);
 
   const getTrigger = useCallback(
@@ -153,7 +154,7 @@ export function useTabTrigger(options: TabTriggerProps): UseTabTriggerResult {
 
       return {
         isFocused: state.index === config.index,
-        route: state.routes[config.index],
+        route: state.routes[config.index]!,
         resolvedHref: stripGroupSegmentsFromPath(appendBaseUrl(config.href)),
         ...config,
       };
@@ -172,9 +173,10 @@ export function useTabTrigger(options: TabTriggerProps): UseTabTriggerResult {
           return router.navigate(config.href);
         } else {
           return navigation?.dispatch({
+            ...config.action,
             type: 'JUMP_TO',
             payload: {
-              name,
+              ...config.action.payload,
               ...options,
             },
           });
@@ -205,14 +207,16 @@ export function useTabTrigger(options: TabTriggerProps): UseTabTriggerResult {
 
       if (!shouldHandleMouseEvent(event)) return;
 
-      switchTab(name, { reset: reset !== 'onLongPress' ? reset : undefined });
+      if (!trigger.isFocused) {
+        switchTab(name, { resetOnFocus });
+      }
     },
-    [onPress, name, reset, trigger]
+    [onPress, name, resetOnFocus, trigger]
   );
 
-  const handleOnLongPress = useCallback<NonNullable<PressableProps['onPress']>>(
+  const handleOnLongPress = useCallback<NonNullable<PressableProps['onLongPress']>>(
     (event) => {
-      onPress?.(event);
+      onLongPress?.(event);
       if (!trigger) return;
       if (event?.isDefaultPrevented()) return;
 
@@ -223,11 +227,13 @@ export function useTabTrigger(options: TabTriggerProps): UseTabTriggerResult {
 
       if (!shouldHandleMouseEvent(event)) return;
 
-      switchTab(name, {
-        reset: reset === 'onLongPress' ? 'always' : reset,
-      });
+      if (!trigger.isFocused) {
+        switchTab(name, {
+          resetOnFocus,
+        });
+      }
     },
-    [onLongPress, name, reset, trigger]
+    [onLongPress, name, resetOnFocus, trigger]
   );
 
   const triggerProps = {

@@ -16,7 +16,7 @@ When an asset is stored in your project's file system, it can be embedded in you
 
 For example, to render an image called **example.png** in **App.js**, you can use `require` to import the image from the project's **assets/images** directory and pass it to the `<Image>` component:
 
-```tsx app/index.tsx
+```tsx src/app/index.tsx
 <Image source={require('./assets/images/example.png')} />
 ```
 
@@ -29,8 +29,6 @@ Libraries such as `expo-image` and `expo-file-system` work similarly to the `<Im
 Locally stored assets are served over HTTP in development. They are automatically bundled into your app binary at the build time for production apps and served from disk on a device.
 
 ### Load an asset at build time with `expo-asset` config plugin
-
-> **Note:** The `expo-asset` config plugin is only available for SDK 51 and above. If you are using an older SDK, you can load a [using the `useAssets` hook](#load-an-asset-at-runtime-with-useassets-hook).
 
 To load an asset at build time, you can use the [config plugin](/versions/latest/sdk/asset/#example-appjson-with-config-plugin) from the `expo-asset` library. This plugin will embed the asset file in your native project.
 
@@ -73,7 +71,7 @@ After embedding the asset with the config plugin, [create a new development buil
 
 For example, the **example.png** is linked by the above config plugin. You can directly import it into your component and use its resource name as the URI. Note that when rendering assets without using `require`, you need to explicitly provide a width / height.
 
-```tsx app/index.tsx
+```tsx src/app/index.tsx
 import { Image } from 'expo-image';
 /* @hide ... */ /* @end */
 
@@ -102,7 +100,7 @@ Install the `expo-asset` library.
 
 Import the [`useAssets`](/versions/latest/sdk/asset/#useassetsmoduleids) hook from the `expo-asset` library in your screen component:
 
-```tsx app/index.tsx
+```tsx src/app/index.tsx
 import { useAssets } from 'expo-asset';
 
 export default function HomeScreen() {

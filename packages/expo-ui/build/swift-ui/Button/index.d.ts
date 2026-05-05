@@ -1,4 +1,4 @@
-import { type ViewEvent } from '../../types';
+import { type SFSymbol } from 'sf-symbols-typescript';
 import { type CommonViewModifierProps } from '../types';
 /**
  * The role of the button.
@@ -7,24 +7,6 @@ import { type CommonViewModifierProps } from '../types';
  * - `destructive` - A button that deletes data or performs a destructive action.
  */
 export type ButtonRole = 'default' | 'cancel' | 'destructive';
-/**
- * The built-in button styles available on iOS.
- *
- * Common styles:
- * - `default` - The default system button style.
- * - `bordered` - A button with a light fill. On Android, equivalent to `FilledTonalButton`.
- * - `borderless` - A button with no background or border. On Android, equivalent to `TextButton`.
- * - `borderedProminent` - A bordered button with a prominent appearance.
- * - `plain` - A button with no border or background and a less prominent text.
- * macOS-only styles:
- * - `glass` – A liquid glass button effect – (available only since iOS 26, for now only when built with beta version of Xcode)
- * - `glassProminent` – A liquid glass button effect – (available only since iOS 26, for now only when built with beta 3 version of Xcode)
- * - `accessoryBar` - A button style for accessory bars.
- * - `accessoryBarAction` - A button style for accessory bar actions.
- * - `card` - A button style for cards.
- * - `link` - A button style for links.
- */
-export type ButtonVariant = 'default' | 'bordered' | 'plain' | 'glass' | 'glassProminent' | 'borderedProminent' | 'borderless' | 'accessoryBar' | 'accessoryBarAction' | 'card' | 'link';
 export type ButtonProps = {
     /**
      * A callback that is called when the button is pressed.
@@ -32,48 +14,47 @@ export type ButtonProps = {
     onPress?: () => void;
     /**
      * A string describing the system image to display in the button.
-     * This is only used if `children` is a string.
-     * Uses Material Icons on Android and SF Symbols on iOS.
+     * Only used when `label` is provided.
      */
-    systemImage?: string;
+    systemImage?: SFSymbol;
     /**
-     * Indicated the role of the button.
-     * @platform ios
+     * Indicates the role of the button.
      */
     role?: ButtonRole;
     /**
-     * The button variant.
+     * The text label for the button. Use this for simple text buttons.
      */
-    variant?: ButtonVariant;
+    label?: string;
     /**
-     * The text or React node to display inside the button.
+     * Custom content for the button label. Use this for custom label views.
+     * Only nested elements are supported, not plain strings.
      */
-    children?: string | React.ReactNode;
+    children?: React.ReactElement | React.ReactElement[];
     /**
-     * Button color.
+     * Target identifier for the button, used for identifying which button was pressed in widgets and live activities.
      */
-    color?: string;
-    /**
-     * Disabled state of the button.
-     */
-    disabled?: boolean;
+    target?: string;
 } & CommonViewModifierProps;
 /**
- * exposed for ContextMenu
- * @hidden
- */
-export type NativeButtonProps = Omit<ButtonProps, 'role' | 'onPress' | 'children' | 'systemImage'> & {
-    buttonRole?: ButtonRole;
-    text: string | undefined;
-    systemImage?: string;
-} & ViewEvent<'onButtonPressed', void>;
-/**
- * exposed for ContextMenu
- * @hidden
- */
-export declare function transformButtonProps(props: Omit<ButtonProps, 'children'>, text: string | undefined): NativeButtonProps;
-/**
  * Displays a native button component.
+ *
+ * @example
+ * ```tsx
+ * import { Button } from '@expo/ui/swift-ui';
+ * import { buttonStyle, controlSize, tint, disabled } from '@expo/ui/swift-ui/modifiers';
+ *
+ * <Button
+ *   role="destructive"
+ *   onPress={handlePress}
+ *   label="Delete"
+ *   modifiers={[
+ *     buttonStyle('bordered'),
+ *     controlSize('large'),
+ *     tint('#FF0000'),
+ *     disabled(true)
+ *   ]}
+ * />
+ * ```
  */
-export declare function Button(props: ButtonProps): import("react").JSX.Element;
+export declare function Button(props: ButtonProps): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=index.d.ts.map

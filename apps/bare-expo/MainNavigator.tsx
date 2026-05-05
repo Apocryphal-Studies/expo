@@ -7,7 +7,9 @@ import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { Platform } from 'react-native';
-import TestSuite from 'test-suite/AppNavigator';
+import { TestStackNavigator } from 'test-suite/TestStackNavigator';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { AppMetrics } from 'expo-observe';
 
 type NavigationRouteConfigMap = React.ComponentType;
 
@@ -34,12 +36,11 @@ export function optionalRequire(requirer: () => { default: React.ComponentType }
   }
 }
 const routes: RoutesConfig = {
-  [testSuiteRouteName]: TestSuite,
+  [testSuiteRouteName]: TestStackNavigator,
 };
 
-// We'd like to get rid of `native-component-list` being a part of the final bundle.
-// Otherwise, some tests may fail due to timeouts (bundling takes significantly more time).
-// See `babel.config.js` and `moduleResolvers/nullResolver.js` for more details.
+// TODO vonovak there's potential for skipping the require of APIs tab as it's not used in CI
+// could use metro config to exclude it from bundling
 const NativeComponentList: NativeComponentListExportsType = optionalRequire(() =>
   require('native-component-list/src/navigation/MainNavigators')
 ) as any;
@@ -105,7 +106,7 @@ function TabNavigator() {
       safeAreaInsets={Platform.select({
         default: undefined,
       })}
-      initialRouteName="test-suite">
+      initialRouteName={testSuiteRouteName}>
       {Object.keys(routes).map((name) => (
         <Tab.Screen
           name={name}
@@ -119,7 +120,7 @@ function TabNavigator() {
 }
 const PERSISTENCE_KEY = 'NAVIGATION_STATE_V1';
 
-export default () => {
+export default function MainNavigator() {
   const { name: themeName } = useTheme();
   const [isReady, setIsReady] = React.useState(Platform.OS === 'web');
   const [initialState, setInitialState] = React.useState();
@@ -148,28 +149,37 @@ export default () => {
     };
     restoreState()
       .catch(console.error)
-      .finally(() => setIsReady(true));
+      .finally(() => {
+        setIsReady(true);
+        AppMetrics.markInteractive({
+          params: {
+            theme: themeName,
+          },
+        });
+      });
   }, [isReady]);
 
   if (!isReady) {
     return null;
   }
   return (
-    <NavigationContainer
-      linking={linking}
-      initialState={initialState}
-      onStateChange={(state) => {
-        AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state)).catch(console.error);
-      }}>
-      <Switch.Navigator
-        screenOptions={{ headerShown: false }}
-        initialRouteName="main"
-        id={undefined}>
-        {Redirect && <Switch.Screen name="redirect" component={Redirect} />}
-        {Search && <Switch.Screen name="searchNavigator" component={Search} />}
-        <Switch.Screen name="main" component={TabNavigator} />
-      </Switch.Navigator>
-      <StatusBar style={themeName === 'light' ? 'dark' : 'light'} />
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer
+        linking={linking}
+        initialState={initialState}
+        onStateChange={(state) => {
+          AsyncStorage.setItem(PERSISTENCE_KEY, JSON.stringify(state)).catch(console.error);
+        }}>
+        <Switch.Navigator
+          screenOptions={{ headerShown: false }}
+          initialRouteName="main"
+          id={undefined}>
+          {Redirect && <Switch.Screen name="redirect" component={Redirect} />}
+          {Search && <Switch.Screen name="searchNavigator" component={Search} />}
+          <Switch.Screen name="main" component={TabNavigator} />
+        </Switch.Navigator>
+        <StatusBar style={themeName === 'light' ? 'dark' : 'light'} />
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
-};
+}

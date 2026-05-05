@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
@@ -57,5 +58,95 @@ describe(Terminal, () => {
   it('do not generate copyCmd if there is more than one command', () => {
     render(<Terminal cmd={['$ npx create-expo-app init test', '$ cd test']} />);
     expect(screen.queryByText('Copy')).toBe(null);
+  });
+
+  it('renders package manager tabs and switches commands with correct copy', async () => {
+    render(
+      <>
+        <Terminal
+          cmd={{
+            npm: ['$ npm install expo'],
+            yarn: ['$ yarn add expo'],
+            pnpm: ['$ pnpm add expo'],
+            bun: ['$ bun add expo'],
+          }}
+        />
+        <textarea />
+      </>
+    );
+
+    const user = userEvent.setup();
+
+    expect(screen.getByRole('tab', { name: /^npm$/i })).toHaveAttribute('aria-selected', 'true');
+    const npmLine = screen.getAllByText((_, node) => {
+      const text = node?.textContent ?? '';
+      return !!(text.includes('npm install expo') && node?.tagName.toLowerCase() === 'code');
+    })[0];
+    expect(npmLine).toBeVisible();
+
+    await user.click(screen.getByRole('tab', { name: /^yarn$/i }));
+    expect(screen.getByRole('tab', { name: /^yarn$/i })).toHaveAttribute('aria-selected', 'true');
+    expect(
+      screen.queryByText((_, node) => {
+        const text = node?.textContent ?? '';
+        return !!(text.includes('npm install expo') && node?.tagName.toLowerCase() === 'code');
+      })
+    ).toBeNull();
+    const yarnLine = screen.getAllByText((_, node) => {
+      const text = node?.textContent ?? '';
+      return !!(text.includes('yarn add expo') && node?.tagName.toLowerCase() === 'code');
+    })[0];
+    expect(yarnLine).toBeVisible();
+
+    await user.click(screen.getByText('Copy'));
+    await user.click(screen.getByRole('textbox'));
+    await user.paste();
+
+    expect(screen.getByRole<HTMLTextAreaElement>('textbox').value).toBe('yarn add expo');
+  });
+
+  it('adds data-md-commands only for package-manager command maps', () => {
+    render(
+      <>
+        <Terminal
+          cmd={{
+            npm: ['$ npm install expo'],
+            bun: ['$ bun add expo'],
+          }}
+        />
+        <Terminal cmd={['$ npx expo start']} />
+      </>
+    );
+
+    const terminals = screen.getAllByRole('generic').filter(el => el.dataset.md === 'terminal');
+    expect(terminals.length).toBe(2);
+    expect(terminals[0].getAttribute('data-md-commands')).not.toBeNull();
+    expect(terminals[1].getAttribute('data-md-commands')).toBeNull();
+  });
+
+  it('renders browser action when provided', async () => {
+    const originalWindowOpen = window.open;
+    const openMock = jest.fn();
+    window.open = openMock as unknown as typeof window.open;
+
+    render(
+      <Terminal
+        cmd={['$ expo login']}
+        browserAction={{ href: 'https://expo.dev/login', label: 'Open in expo.dev' }}
+      />
+    );
+
+    expect(screen.getByText('Open in expo.dev')).toBeVisible();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByText('Open in expo.dev'));
+
+    expect(openMock).toHaveBeenCalledWith(
+      'https://expo.dev/login',
+      '_blank',
+      'noopener,noreferrer'
+    );
+
+    window.open = originalWindowOpen;
   });
 });

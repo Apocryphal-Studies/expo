@@ -1,8 +1,8 @@
 import { screen, act, fireEvent } from '@testing-library/react-native';
-import React from 'react';
 import { Text } from 'react-native';
 
-import { RedirectConfig, router } from '../exports';
+import type { RedirectConfig } from '../exports';
+import { router } from '../exports';
 import { store } from '../global-state/router-store';
 import Stack from '../layouts/Stack';
 import { Tabs } from '../layouts/Tabs';
@@ -41,7 +41,7 @@ it('deep link to a redirect', () => {
     {
       source: '/foo',
       destination: '/bar',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(
@@ -67,11 +67,9 @@ it('deep link to a redirect', () => {
               path: '/bar',
             },
           ],
-          stale: true,
         },
       },
     ],
-    stale: true,
   });
 });
 
@@ -80,7 +78,7 @@ it('deep link to a dynamic redirect', () => {
     {
       source: '/foo/[slug]',
       destination: 'deeply/nested/route/[slug]',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(
@@ -110,11 +108,9 @@ it('deep link to a dynamic redirect', () => {
               path: '/deeply/nested/route/bar',
             },
           ],
-          stale: true,
         },
       },
     ],
-    stale: true,
   });
 });
 
@@ -123,7 +119,7 @@ it('keeps extra params as query params', () => {
     {
       source: '/foo/[slug]',
       destination: '/bar',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(
@@ -147,11 +143,9 @@ it('keeps extra params as query params', () => {
               path: '/bar',
             },
           ],
-          stale: true,
         },
       },
     ],
-    stale: true,
   });
 });
 
@@ -160,7 +154,7 @@ it('can redirect from single to catch all', () => {
     {
       source: '/foo/[slug]',
       destination: 'bar/[...slug]',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(
@@ -190,11 +184,9 @@ it('can redirect from single to catch all', () => {
               path: '/bar/bar',
             },
           ],
-          stale: true,
         },
       },
     ],
-    stale: true,
   });
 });
 
@@ -203,7 +195,7 @@ it('can push to a redirect', () => {
     {
       source: '/foo',
       destination: '/bar',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter({
@@ -222,11 +214,9 @@ it('can push to a redirect', () => {
               path: '/',
             },
           ],
-          stale: true,
         },
       },
     ],
-    stale: true,
   });
 
   act(() => router.push('/foo'));
@@ -275,7 +265,7 @@ it('does not render redirects in tabs', async () => {
     {
       source: '/foo',
       destination: '/bar',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter({
@@ -292,7 +282,7 @@ it('redirect to external URL', async () => {
     {
       source: '/foo',
       destination: '//example.com',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter({
@@ -311,7 +301,7 @@ it('redirects will override existing routes', () => {
     {
       source: '(tabs)/explore',
       destination: '//example.com',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter({
@@ -332,7 +322,7 @@ it('tabs can still work for redirects', () => {
     {
       source: './(tabs)/explore',
       destination: '/page',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(
@@ -359,7 +349,7 @@ it('tabs can still work for external redirects', () => {
     {
       source: './(tabs)/explore.tsx',
       destination: '//example.com',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(
@@ -384,7 +374,7 @@ it('not existing nested route redirects correctly', () => {
     {
       source: '/test/1234',
       destination: '/explore',
-    },
+    } as RedirectConfig,
   ]);
 
   renderRouter(

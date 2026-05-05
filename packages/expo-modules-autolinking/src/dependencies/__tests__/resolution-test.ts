@@ -2,6 +2,7 @@ import { vol } from 'memfs';
 import type { NestedDirectoryJSON } from 'memfs/lib/volume';
 import path from 'path';
 
+import { createMemoizer, _verifyMemoizerFreed } from '../../memoize';
 import { scanDependenciesRecursively } from '../resolution';
 
 function mockedNodeModule(
@@ -9,6 +10,7 @@ function mockedNodeModule(
   options?: {
     pkgVersion?: string;
     pkgDependencies?: Record<string, string>;
+    pkgDevDependencies?: Record<string, string>;
     pkgExtra?: Record<string, unknown>;
   }
 ): NestedDirectoryJSON {
@@ -17,6 +19,7 @@ function mockedNodeModule(
       name,
       version: options?.pkgVersion ?? '0.0.1',
       dependencies: options?.pkgDependencies ?? {},
+      devDependencies: options?.pkgDevDependencies ?? {},
       ...options?.pkgExtra,
     }),
   };
@@ -31,12 +34,19 @@ const symlinkMany = (symlinks: Record<string, string>) => {
 
 const projectRoot = '/fake/project';
 
+const itWithMemoize = (name: string, fn: () => Promise<void>) => {
+  return it(name, async () => {
+    await createMemoizer().withMemoizer(fn);
+    expect(_verifyMemoizerFreed()).toBe(true);
+  });
+};
+
 describe(scanDependenciesRecursively, () => {
   afterEach(() => {
     vol.reset();
   });
 
-  it('discovers flat dependencies', async () => {
+  itWithMemoize('discovers flat dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -66,7 +76,7 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('discovers transitive dependencies', async () => {
+  itWithMemoize('discovers transitive dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -114,7 +124,7 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('discovers transitive, hoisted dependencies', async () => {
+  itWithMemoize('discovers transitive, hoisted dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -156,7 +166,7 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('discovers transitive, isolated dependencies', async () => {
+  itWithMemoize('discovers transitive, isolated dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -211,7 +221,40 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('ignores transitive, hoisted dependencies without dependents', async () => {
+  itWithMemoize('discovers dependencies on nameless package.json', async () => {
+    vol.fromNestedJSON(
+      {
+        'package.json': JSON.stringify({
+          // Missing name
+          dependencies: { 'react-native-third-party': '*' },
+        }),
+        node_modules: {
+          'react-native-third-party': {
+            'package.json': '{}', // Missing name
+          },
+        },
+      },
+      projectRoot
+    );
+
+    const result = await scanDependenciesRecursively(projectRoot);
+
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "react-native-third-party": {
+          "depth": 0,
+          "duplicates": null,
+          "name": "react-native-third-party",
+          "originPath": "/fake/project/node_modules/react-native-third-party",
+          "path": "/fake/project/node_modules/react-native-third-party",
+          "source": 0,
+          "version": "",
+        },
+      }
+    `);
+  });
+
+  itWithMemoize('ignores transitive, hoisted dependencies without dependents', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -242,7 +285,7 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('ignores dependency names from filter', async () => {
+  itWithMemoize('ignores dependency names from filter', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -275,7 +318,7 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('discovers transitive, duplicate dependencies', async () => {
+  itWithMemoize('discovers transitive, duplicate dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -332,7 +375,7 @@ describe(scanDependenciesRecursively, () => {
               "name": "react-native-dependency",
               "originPath": "/fake/project/node_modules/parent-b/node_modules/react-native-dependency",
               "path": "/fake/project/node_modules/parent-b/node_modules/react-native-dependency",
-              "version": "",
+              "version": "0.0.1",
             },
           ],
           "name": "react-native-dependency",
@@ -345,7 +388,7 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('allows depth to be limited', async () => {
+  itWithMemoize('allows depth to be limited', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -369,6 +412,7 @@ describe(scanDependenciesRecursively, () => {
 
     const result = await scanDependenciesRecursively(projectRoot, { limitDepth: 1 });
 
+    // limitDepth: 1 finds direct dependencies of the root but does not recurse into them
     expect(result).toMatchInlineSnapshot(`
       {
         "react-native-third-party": {
@@ -378,13 +422,13 @@ describe(scanDependenciesRecursively, () => {
           "originPath": "/fake/project/node_modules/react-native-third-party",
           "path": "/fake/project/node_modules/react-native-third-party",
           "source": 0,
-          "version": "",
+          "version": "0.0.1",
         },
       }
     `);
   });
 
-  it('discovers transitive peer dependencies', async () => {
+  itWithMemoize('discovers transitive peer dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -432,7 +476,265 @@ describe(scanDependenciesRecursively, () => {
     `);
   });
 
-  it('ignores transitive optional peer dependencies', async () => {
+  it('resolves isolated duplicates with stable version regardless of dependency ordering', async () => {
+    const runWithOrder = async (first: string, second: string) => {
+      const result = await createMemoizer().withMemoizer(async () => {
+        vol.fromNestedJSON(
+          {
+            ...mockedNodeModule('root', {
+              pkgDependencies: { [first]: '*', [second]: '*' },
+            }),
+            node_modules: {
+              '.pnpm': {
+                'parent-a@1.0.0/node_modules': {
+                  'parent-a': mockedNodeModule('parent-a', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { dep: '*' },
+                  }),
+                },
+                'parent-b@1.0.0/node_modules': {
+                  'parent-b': mockedNodeModule('parent-b', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { dep: '*' },
+                  }),
+                },
+                'dep@2.0.0/node_modules': {
+                  dep: mockedNodeModule('dep', { pkgVersion: '2.0.0' }),
+                },
+              },
+            },
+          },
+          projectRoot
+        );
+        symlinkMany({
+          'node_modules/parent-a': 'node_modules/.pnpm/parent-a@1.0.0/node_modules/parent-a',
+          'node_modules/parent-b': 'node_modules/.pnpm/parent-b@1.0.0/node_modules/parent-b',
+          'node_modules/.pnpm/parent-a@1.0.0/node_modules/dep':
+            'node_modules/.pnpm/dep@2.0.0/node_modules/dep',
+          'node_modules/.pnpm/parent-b@1.0.0/node_modules/dep':
+            'node_modules/.pnpm/dep@2.0.0/node_modules/dep',
+        });
+        return await scanDependenciesRecursively(projectRoot);
+      });
+      expect(_verifyMemoizerFreed()).toBe(true);
+      return result;
+    };
+
+    const resultAB = await runWithOrder('parent-a', 'parent-b');
+    vol.reset();
+    const resultBA = await runWithOrder('parent-b', 'parent-a');
+
+    for (const key of Object.keys(resultAB)) {
+      expect(resultAB[key]?.path).toBe(resultBA[key]?.path);
+      expect(resultAB[key]?.version).toBe(resultBA[key]?.version);
+    }
+    expect(resultAB['dep']?.version).toBe('2.0.0');
+  });
+
+  it('resolves multi-level isolated duplicates with stable path and version, stable originPath', async () => {
+    const runWithOrder = async (first: string, second: string) => {
+      const result = await createMemoizer().withMemoizer(async () => {
+        vol.fromNestedJSON(
+          {
+            ...mockedNodeModule('root', {
+              pkgDependencies: { [first]: '*', [second]: '*' },
+            }),
+            node_modules: {
+              '.pnpm': {
+                'parent-a@1.0.0/node_modules': {
+                  'parent-a': mockedNodeModule('parent-a', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { 'shared-dep': '*' },
+                  }),
+                },
+                'parent-b@1.0.0/node_modules': {
+                  'parent-b': mockedNodeModule('parent-b', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { 'shared-dep': '*' },
+                  }),
+                },
+                'shared-dep@2.0.0/node_modules': {
+                  'shared-dep': mockedNodeModule('shared-dep', {
+                    pkgVersion: '2.0.0',
+                    pkgDependencies: { grandchild: '*' },
+                  }),
+                },
+                'grandchild@3.0.0/node_modules': {
+                  grandchild: mockedNodeModule('grandchild', { pkgVersion: '3.0.0' }),
+                },
+              },
+            },
+          },
+          projectRoot
+        );
+        symlinkMany({
+          'node_modules/parent-a': 'node_modules/.pnpm/parent-a@1.0.0/node_modules/parent-a',
+          'node_modules/parent-b': 'node_modules/.pnpm/parent-b@1.0.0/node_modules/parent-b',
+          'node_modules/.pnpm/parent-a@1.0.0/node_modules/shared-dep':
+            'node_modules/.pnpm/shared-dep@2.0.0/node_modules/shared-dep',
+          'node_modules/.pnpm/parent-b@1.0.0/node_modules/shared-dep':
+            'node_modules/.pnpm/shared-dep@2.0.0/node_modules/shared-dep',
+          'node_modules/.pnpm/shared-dep@2.0.0/node_modules/grandchild':
+            'node_modules/.pnpm/grandchild@3.0.0/node_modules/grandchild',
+        });
+        return await scanDependenciesRecursively(projectRoot);
+      });
+      expect(_verifyMemoizerFreed()).toBe(true);
+      return result;
+    };
+
+    const resultAB = await runWithOrder('parent-a', 'parent-b');
+    vol.reset();
+    const resultBA = await runWithOrder('parent-b', 'parent-a');
+
+    for (const key of Object.keys(resultAB)) {
+      expect(resultAB[key]?.path).toBe(resultBA[key]?.path);
+      expect(resultAB[key]?.version).toBe(resultBA[key]?.version);
+      expect(resultAB[key]?.depth).toBe(resultBA[key]?.depth);
+      expect(resultAB[key]?.source).toBe(resultBA[key]?.source);
+      expect(resultAB[key]?.name).toBe(resultBA[key]?.name);
+    }
+    expect(resultAB['shared-dep']?.version).toBe('2.0.0');
+    expect(resultAB['grandchild']?.version).toBe('3.0.0');
+    expect(resultAB['shared-dep']?.originPath).toBe(resultBA['shared-dep']?.originPath);
+  });
+
+  it('resolves mixed-depth diamond with stable path and version', async () => {
+    const runWithOrder = async (first: string, second: string) => {
+      const result = await createMemoizer().withMemoizer(async () => {
+        vol.fromNestedJSON(
+          {
+            ...mockedNodeModule('root', {
+              pkgDependencies: { [first]: '*', [second]: '*' },
+            }),
+            node_modules: {
+              '.pnpm': {
+                'parent-a@1.0.0/node_modules': {
+                  'parent-a': mockedNodeModule('parent-a', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { 'shared-dep': '*' },
+                  }),
+                },
+                'parent-b@1.0.0/node_modules': {
+                  'parent-b': mockedNodeModule('parent-b', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { 'mid-b': '*' },
+                  }),
+                },
+                'mid-b@1.5.0/node_modules': {
+                  'mid-b': mockedNodeModule('mid-b', {
+                    pkgVersion: '1.5.0',
+                    pkgDependencies: { 'shared-dep': '*' },
+                  }),
+                },
+                'shared-dep@2.0.0/node_modules': {
+                  'shared-dep': mockedNodeModule('shared-dep', {
+                    pkgVersion: '2.0.0',
+                    pkgDependencies: { grandchild: '*' },
+                  }),
+                },
+                'grandchild@3.0.0/node_modules': {
+                  grandchild: mockedNodeModule('grandchild', { pkgVersion: '3.0.0' }),
+                },
+              },
+            },
+          },
+          projectRoot
+        );
+        symlinkMany({
+          'node_modules/parent-a': 'node_modules/.pnpm/parent-a@1.0.0/node_modules/parent-a',
+          'node_modules/parent-b': 'node_modules/.pnpm/parent-b@1.0.0/node_modules/parent-b',
+          'node_modules/.pnpm/parent-b@1.0.0/node_modules/mid-b':
+            'node_modules/.pnpm/mid-b@1.5.0/node_modules/mid-b',
+          'node_modules/.pnpm/parent-a@1.0.0/node_modules/shared-dep':
+            'node_modules/.pnpm/shared-dep@2.0.0/node_modules/shared-dep',
+          'node_modules/.pnpm/mid-b@1.5.0/node_modules/shared-dep':
+            'node_modules/.pnpm/shared-dep@2.0.0/node_modules/shared-dep',
+          'node_modules/.pnpm/shared-dep@2.0.0/node_modules/grandchild':
+            'node_modules/.pnpm/grandchild@3.0.0/node_modules/grandchild',
+        });
+        return await scanDependenciesRecursively(projectRoot);
+      });
+      expect(_verifyMemoizerFreed()).toBe(true);
+      return result;
+    };
+
+    const resultAB = await runWithOrder('parent-a', 'parent-b');
+    vol.reset();
+    const resultBA = await runWithOrder('parent-b', 'parent-a');
+
+    for (const key of Object.keys(resultAB)) {
+      expect(resultAB[key]?.path).toBe(resultBA[key]?.path);
+      expect(resultAB[key]?.version).toBe(resultBA[key]?.version);
+    }
+    expect(resultAB['shared-dep']?.depth).toBe(1);
+  });
+
+  it('resolves isolated duplicates with stable version when three parents share a dependency', async () => {
+    const runWithOrder = async (first: string, second: string) => {
+      const result = await createMemoizer().withMemoizer(async () => {
+        vol.fromNestedJSON(
+          {
+            ...mockedNodeModule('root', {
+              pkgDependencies: { [first]: '*', [second]: '*', 'parent-c': '*' },
+            }),
+            node_modules: {
+              '.pnpm': {
+                'parent-a@1.0.0/node_modules': {
+                  'parent-a': mockedNodeModule('parent-a', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { dep: '*' },
+                  }),
+                },
+                'parent-b@1.0.0/node_modules': {
+                  'parent-b': mockedNodeModule('parent-b', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { dep: '*' },
+                  }),
+                },
+                'parent-c@1.0.0/node_modules': {
+                  'parent-c': mockedNodeModule('parent-c', {
+                    pkgVersion: '1.0.0',
+                    pkgDependencies: { dep: '*' },
+                  }),
+                },
+                'dep@2.0.0/node_modules': {
+                  dep: mockedNodeModule('dep', { pkgVersion: '2.0.0' }),
+                },
+              },
+            },
+          },
+          projectRoot
+        );
+        symlinkMany({
+          'node_modules/parent-a': 'node_modules/.pnpm/parent-a@1.0.0/node_modules/parent-a',
+          'node_modules/parent-b': 'node_modules/.pnpm/parent-b@1.0.0/node_modules/parent-b',
+          'node_modules/parent-c': 'node_modules/.pnpm/parent-c@1.0.0/node_modules/parent-c',
+          'node_modules/.pnpm/parent-a@1.0.0/node_modules/dep':
+            'node_modules/.pnpm/dep@2.0.0/node_modules/dep',
+          'node_modules/.pnpm/parent-b@1.0.0/node_modules/dep':
+            'node_modules/.pnpm/dep@2.0.0/node_modules/dep',
+          'node_modules/.pnpm/parent-c@1.0.0/node_modules/dep':
+            'node_modules/.pnpm/dep@2.0.0/node_modules/dep',
+        });
+        return await scanDependenciesRecursively(projectRoot);
+      });
+      expect(_verifyMemoizerFreed()).toBe(true);
+      return result;
+    };
+
+    const resultAB = await runWithOrder('parent-a', 'parent-b');
+    vol.reset();
+    const resultBA = await runWithOrder('parent-b', 'parent-a');
+
+    for (const key of Object.keys(resultAB)) {
+      expect(resultAB[key]?.path).toBe(resultBA[key]?.path);
+      expect(resultAB[key]?.version).toBe(resultBA[key]?.version);
+    }
+    expect(resultAB['dep']?.version).toBe('2.0.0');
+  });
+
+  itWithMemoize('ignores transitive optional peer dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -472,5 +774,33 @@ describe(scanDependenciesRecursively, () => {
         },
       }
     `);
+  });
+
+  itWithMemoize('populates versions while stopping recursion at deepest dependency', async () => {
+    vol.fromNestedJSON(
+      {
+        ...mockedNodeModule('root', {
+          pkgDependencies: { 'parent-a': '*', 'parent-b': '*' },
+        }),
+        node_modules: {
+          'parent-a': mockedNodeModule('parent-a', {
+            pkgDependencies: { 'shared-dep': '*' },
+          }),
+          'parent-b': mockedNodeModule('parent-b', {
+            pkgDependencies: { 'shared-dep': '*' },
+          }),
+          'shared-dep': mockedNodeModule('shared-dep', {
+            pkgVersion: '6.0.0',
+          }),
+        },
+      },
+      projectRoot
+    );
+
+    // limitDepth: 2 finds shared-dep (discovered at depth 1) but does not recurse into it.
+    // Its version should be properly populated via loadPackageJson.
+    const result = await scanDependenciesRecursively(projectRoot, { limitDepth: 2 });
+
+    expect(result['shared-dep']?.version).toBe('6.0.0');
   });
 });

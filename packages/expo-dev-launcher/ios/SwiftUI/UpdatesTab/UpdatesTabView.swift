@@ -20,9 +20,8 @@ struct UpdatesTabView: View {
         }
       }
     }
+    #if os(tvOS)
+    .background()
+    #endif
   }
-}
-
-#Preview {
-  UpdatesTabView()
 }

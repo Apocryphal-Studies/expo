@@ -1,4 +1,5 @@
-import { BackgroundTaskOptions, BackgroundTaskStatus } from './BackgroundTask.types';
+import type { BackgroundTaskOptions } from './BackgroundTask.types';
+import { BackgroundTaskStatus } from './BackgroundTask.types';
 /**
  * Returns the status for the Background Task API. On web, it always returns `BackgroundTaskStatus.Restricted`,
  * while on native platforms it returns `BackgroundTaskStatus.Available`.
@@ -48,5 +49,16 @@ export declare function unregisterTaskAsync(taskName: string): Promise<void>;
  * @returns A promise which fulfils when the task is triggered.
  */
 export declare function triggerTaskWorkerForTestingAsync(): Promise<boolean>;
-export { BackgroundTaskStatus, BackgroundTaskResult, BackgroundTaskOptions, } from './BackgroundTask.types';
+/**
+ * Adds a listener that is called when the background executor expires. On iOS, tasks can run
+ * for minutes, but the system can interrupt the process at any time. This listener is called
+ * when the system decides to stop the background tasks and should be used to clean up resources
+ * or save state. When the expiry handler is called, the main task runner is rescheduled automatically.
+ * @platform ios
+ * @return An object with a `remove` method to unsubscribe the listener.
+ */
+export declare function addExpirationListener(listener: () => void): {
+    remove: () => void;
+};
+export { BackgroundTaskStatus, BackgroundTaskResult, type BackgroundTaskOptions, } from './BackgroundTask.types';
 //# sourceMappingURL=BackgroundTask.d.ts.map

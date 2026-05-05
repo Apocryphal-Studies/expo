@@ -3,6 +3,7 @@ export type PageMetadata = {
   description?: string;
   sourceCodeUrl?: string;
   packageName?: string;
+  cliVersion?: string;
   maxHeadingDepth?: number;
   iconUrl?: string;
   /* If the page should not show up in the Algolia Docsearch results */
@@ -42,13 +43,17 @@ export type NavigationRoute = {
   as?: string;
   hidden?: boolean;
   expanded?: boolean;
+  hideIcon?: boolean;
   sidebarTitle?: string;
   weight?: number;
   isNew?: boolean;
   isAlpha?: boolean;
+  isBeta?: boolean;
+  isPreview?: boolean;
   isDeprecated?: boolean;
   inExpoGo?: boolean;
   hasVideoLink?: boolean;
+  isIndex?: boolean;
   children?: NavigationRouteWithSection[];
 };
 

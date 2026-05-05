@@ -34,6 +34,31 @@ final class AssetCollectionRepository {
     return fetchedCollection
   }
 
+  func get(containing asset: PHAsset) -> [PHAssetCollection] {
+    var collections: [PHAssetCollection] = []
+    let pHFetchResult = PHAssetCollection.fetchAssetCollectionsContaining(
+      asset,
+      with: .album,
+      options: nil
+    )
+    pHFetchResult.enumerateObjects { collection, _, _ in
+      collections.append(collection)
+    }
+    return collections
+  }
+
+  func get(byTitle title: String) -> PHAssetCollection? {
+    let pHFetchResult = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: nil)
+    var fetchedCollection: PHAssetCollection?
+    pHFetchResult.enumerateObjects { collection, _, stop in
+      if collection.localizedTitle == title {
+        fetchedCollection = collection
+        stop.pointee = true
+      }
+    }
+    return fetchedCollection
+  }
+
   func delete(by collectionIds: [String], deleteAssets: Bool = false) async throws {
     let albums = get(by: collectionIds)
     try await delete(by: albums, deleteAssets: deleteAssets)
@@ -74,6 +99,15 @@ final class AssetCollectionRepository {
     try await PHPhotoLibrary.shared().performChanges {
       if let changeRequest = PHAssetCollectionChangeRequest(for: collection) {
         changeRequest.addAssets(assets as NSFastEnumeration)
+      }
+    }
+  }
+
+  func remove(assets: [PHAsset], from collection: PHAssetCollection) async throws {
+    try await PHPhotoLibrary.shared().performChanges {
+      let fetchResult = PHAsset.fetchAssets(in: collection, options: nil)
+      if let changeRequest = PHAssetCollectionChangeRequest(for: collection, assets: fetchResult) {
+        changeRequest.removeAssets(assets as NSFastEnumeration)
       }
     }
   }

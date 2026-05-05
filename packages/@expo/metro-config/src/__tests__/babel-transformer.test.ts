@@ -1,6 +1,8 @@
 import generate from '@babel/generator';
 import type { BabelTransformer } from '@expo/metro/metro-babel-transformer';
 import { vol } from 'memfs';
+import { getPkgVersionFromPath } from 'packages/@expo/metro-config/src/utils/getPkgVersion';
+import { transitiveResolveFrom } from 'packages/@expo/metro-config/src/utils/transitiveResolveFrom';
 
 import * as babel from '../babel-core';
 // eslint-disable-next-line import/namespace
@@ -28,7 +30,7 @@ it(`passes the environment as isServer to the babel preset`, () => {
   vol.fromJSON({}, '/');
 
   const fixture = `import { Platform } from 'react-native';
-    
+
     export default function App() {
         return <div>Hello</div>
     }`;
@@ -41,7 +43,6 @@ it(`passes the environment as isServer to the babel preset`, () => {
       enableBabelRCLookup: true,
       dev: true,
       projectRoot: '/',
-      hot: true,
       inlineRequires: false as any, // TODO(@kitten): Remove
       minify: false,
       platform: 'ios',
@@ -92,7 +93,7 @@ it(`passes the environment as isReactServer to the babel preset`, () => {
   vol.fromJSON({}, '/');
 
   const fixture = `import { Platform } from 'react-native';
-    
+
     export default function App() {
         return <div>Hello</div>
     }`;
@@ -105,7 +106,6 @@ it(`passes the environment as isReactServer to the babel preset`, () => {
       enableBabelRCLookup: true,
       dev: true,
       projectRoot: '/',
-      hot: true,
       inlineRequires: false as any, // TODO(@kitten): Remove
       minify: false,
       platform: 'ios',

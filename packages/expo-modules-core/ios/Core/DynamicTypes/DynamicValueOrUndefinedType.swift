@@ -1,10 +1,12 @@
 // Copyright 2021-present 650 Industries. All rights reserved.
 
+import ExpoModulesJSI
+
 internal struct DynamicValueOrUndefinedType<InnerType: AnyArgument>: AnyDynamicType {
   let innerType: InnerType.Type = InnerType.self
   let dynamicInnerType: AnyDynamicType = InnerType.getDynamicType()
 
-  func wraps<InnerType>(_ type: InnerType.Type) -> Bool {
+  func wraps<AnyInnerType>(_ type: AnyInnerType.Type) -> Bool {
     return innerType == type
   }
 
@@ -16,8 +18,8 @@ internal struct DynamicValueOrUndefinedType<InnerType: AnyArgument>: AnyDynamicT
     if jsValue.isUndefined() {
       return ValueOrUndefined<InnerType>.undefined
     }
-
-    return try dynamicInnerType.cast(jsValue: jsValue, appContext: appContext)
+    let unwrapped = try dynamicInnerType.cast(jsValue: jsValue, appContext: appContext) as! InnerType
+    return ValueOrUndefined<InnerType>.value(unwrapped: unwrapped)
   }
 
   func cast<ValueType>(_ value: ValueType, appContext: AppContext) throws -> Any {
@@ -26,6 +28,22 @@ internal struct DynamicValueOrUndefinedType<InnerType: AnyArgument>: AnyDynamicT
     }
 
     return ValueOrUndefined<InnerType>.value(unwrapped: try dynamicInnerType.cast(value, appContext: appContext) as! InnerType)
+  }
+
+  func convertResult<ResultType>(_ result: ResultType, appContext: AppContext) throws -> Any {
+    let value = result as! ValueOrUndefined<InnerType>
+    if case .undefined = value {
+      // JavaScriptValue.undefined is not runtime specific, so it's safe to return here, even if it's not on the JS thread.
+      return JavaScriptValue.undefined
+    }
+    return try dynamicInnerType.convertResult(value.optional, appContext: appContext)
+  }
+
+  func castToJS<ValueType>(_ value: ValueType, appContext: AppContext) throws -> JavaScriptValue {
+    if let jsValue = value as? JavaScriptValue {
+      return jsValue
+    }
+    return try dynamicInnerType.castToJS(value, appContext: appContext)
   }
 
   var description: String {

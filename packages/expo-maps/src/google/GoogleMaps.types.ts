@@ -2,7 +2,7 @@ import type { SharedRefType } from 'expo';
 import type { Ref } from 'react';
 import type { ProcessedColorValue, StyleProp, ViewStyle } from 'react-native';
 
-import { CameraPosition, Coordinates } from '../shared.types';
+import type { CameraPosition, Coordinates } from '../shared.types';
 
 /**
  * @platform android
@@ -134,6 +134,11 @@ export type GoogleMapsCircle = {
    * The width of the circle line.
    */
   lineWidth?: number;
+
+  /**
+   * The geographic coordinates of the click point on the map.
+   */
+  clickCoordinates?: Coordinates;
 };
 
 /**
@@ -510,6 +515,17 @@ export type GoogleMapsViewType = {
    * @param config New camera position config.
    */
   setCameraPosition: (config?: SetCameraPositionConfig) => void;
+
+  /**
+   * This is an async operation that animates the camera to the marker. If called
+   * rapidly, a previous animation may be cancelled, causing the returned promise to reject.
+   *
+   * @param id The ID of the marker to select, or `undefined` to clear selection.
+   * @param options Optional configuration for the selection.
+   * @param options.zoom The zoom level to use when animating to the selected marker.
+   * @param options.moveCamera Whether to animate the camera to the selected marker. When `false`, the camera will not move at all. Defaults to `true`.
+   */
+  selectMarker: (id?: string, options?: { zoom?: number; moveCamera?: boolean }) => Promise<void>;
 };
 
 /**

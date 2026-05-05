@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getConfiguration = getConfiguration;
 exports.getSwiftModuleNames = getSwiftModuleNames;
 exports.resolveModuleAsync = resolveModuleAsync;
 exports.resolveExtraBuildDependenciesAsync = resolveExtraBuildDependenciesAsync;
@@ -10,22 +11,24 @@ exports.generateModulesProviderAsync = generateModulesProviderAsync;
 exports.formatArrayOfReactDelegateHandler = formatArrayOfReactDelegateHandler;
 const spawn_async_1 = __importDefault(require("@expo/spawn-async"));
 const fs_1 = __importDefault(require("fs"));
-const glob_1 = require("glob");
 const path_1 = __importDefault(require("path"));
-const fileUtils_1 = require("../../fileUtils");
+const iosInlineModules_1 = require("../../inlineModules/iosInlineModules");
+const utils_1 = require("../../utils");
 const APPLE_PROPERTIES_FILE = 'Podfile.properties.json';
 const APPLE_EXTRA_BUILD_DEPS_KEY = 'apple.extraPods';
+function getConfiguration(options) {
+    return options.buildFromSource ? { buildFromSource: options.buildFromSource } : undefined;
+}
 const indent = '  ';
+/** Find all *.podspec files in top-level directories */
 async function findPodspecFiles(revision) {
     const configPodspecPaths = revision.config?.applePodspecPaths();
     if (configPodspecPaths && configPodspecPaths.length) {
         return configPodspecPaths;
     }
-    const podspecFiles = await (0, glob_1.glob)('*/*.podspec', {
-        cwd: revision.path,
-        ignore: ['**/node_modules/**'],
-    });
-    return podspecFiles;
+    else {
+        return await (0, utils_1.listFilesInDirectories)(revision.path, (basename) => basename.endsWith('.podspec'));
+    }
 }
 function getSwiftModuleNames(pods, swiftModuleNames) {
     if (swiftModuleNames && swiftModuleNames.length) {
@@ -51,7 +54,10 @@ async function resolveModuleAsync(packageName, revision, extraOutput) {
         pods,
         swiftModuleNames,
         flags: extraOutput.flags,
-        modules: revision.config?.appleModules() ?? [],
+        modules: revision.config
+            ?.appleModules()
+            .map((module) => (typeof module === 'string' ? { name: null, class: module } : module)) ??
+            [],
         appDelegateSubscribers: revision.config?.appleAppDelegateSubscribers() ?? [],
         reactDelegateHandlers: revision.config?.appleReactDelegateHandlers() ?? [],
         debugOnly: revision.config?.appleDebugOnly() ?? false,
@@ -75,18 +81,26 @@ async function resolveExtraBuildDependenciesAsync(projectNativeRoot) {
 /**
  * Generates Swift file that contains all autolinked Swift packages.
  */
-async function generateModulesProviderAsync(modules, targetPath, entitlementPath) {
+async function generateModulesProviderAsync(modules, targetPath, entitlementPath, params) {
     const className = path_1.default.basename(targetPath, path_1.default.extname(targetPath));
     const entitlements = await parseEntitlementsAsync(entitlementPath);
-    const generatedFileContent = await generatePackageListFileContentAsync(modules, className, entitlements);
+    const generatedFileContent = await generatePackageListFileContentAsync(modules, className, entitlements, params);
     const parentPath = path_1.default.dirname(targetPath);
+    // Avoid writing the file if the content hasn't changed to prevent unnecessary recompilation.
+    try {
+        const existingContent = await fs_1.default.promises.readFile(targetPath, 'utf8');
+        if (existingContent === generatedFileContent) {
+            return;
+        }
+    }
+    catch { }
     await fs_1.default.promises.mkdir(parentPath, { recursive: true });
     await fs_1.default.promises.writeFile(targetPath, generatedFileContent, 'utf8');
 }
 /**
  * Generates the string to put into the generated package list.
  */
-async function generatePackageListFileContentAsync(modules, className, entitlements) {
+async function generatePackageListFileContentAsync(modules, className, entitlements, params) {
     const iosModules = modules.filter((module) => module.modules.length ||
         module.appDelegateSubscribers.length ||
         module.reactDelegateHandlers.length);
@@ -98,9 +112,10 @@ async function generatePackageListFileContentAsync(modules, className, entitleme
     const debugOnlySwiftModules = []
         .concat(...debugOnlyModules.map((module) => module.swiftModuleNames))
         .filter(Boolean);
-    const modulesClassNames = []
+    let modulesClassNames = []
         .concat(...modulesToImport.map((module) => module.modules))
         .filter(Boolean);
+    modulesClassNames = modulesClassNames.concat(await (0, iosInlineModules_1.getIosInlineModulesClassNames)(params.watchedDirectories, params.appRoot));
     const debugOnlyModulesClassNames = []
         .concat(...debugOnlyModules.map((module) => module.modules))
         .filter(Boolean);
@@ -115,17 +130,17 @@ async function generatePackageListFileContentAsync(modules, className, entitleme
  * but only these that are written in Swift and use the new API for creating Expo modules.
  */
 
-import ExpoModulesCore
+internal import ExpoModulesCore
 ${generateCommonImportList(swiftModules)}
 ${generateDebugOnlyImportList(debugOnlySwiftModules)}
 @objc(${className})
-public class ${className}: ModulesProvider {
-  public override func getModuleClasses() -> [AnyModule.Type] {
+internal class ${className}: ModulesProvider {
+  public override func getModuleClasses() -> [ExpoModuleTupleType] {
 ${generateModuleClasses(modulesClassNames, debugOnlyModulesClassNames)}
   }
 
   public override func getAppDelegateSubscribers() -> [ExpoAppDelegateSubscriber.Type] {
-${generateModuleClasses(appDelegateSubscribers, debugOnlyAppDelegateSubscribers)}
+${generateClasses(appDelegateSubscribers, debugOnlyAppDelegateSubscribers)}
   }
 
   public override func getReactDelegateHandlers() -> [ExpoReactDelegateHandlerTupleType] {
@@ -139,15 +154,31 @@ ${generateReactDelegateHandlers(reactDelegateHandlerModules, debugOnlyReactDeleg
 `;
 }
 function generateCommonImportList(swiftModules) {
-    return swiftModules.map((moduleName) => `import ${moduleName}`).join('\n');
+    return swiftModules.map((moduleName) => `internal import ${moduleName}`).join('\n');
 }
 function generateDebugOnlyImportList(swiftModules) {
     if (!swiftModules.length) {
         return '';
     }
-    return (wrapInDebugConfigurationCheck(0, swiftModules.map((moduleName) => `import ${moduleName}`).join('\n')) + '\n');
+    return (wrapInDebugConfigurationCheck(0, swiftModules.map((moduleName) => `internal import ${moduleName}`).join('\n')) + '\n');
 }
-function generateModuleClasses(classNames, debugOnlyClassName) {
+function generateModuleClasses(modules, debugOnlyModules) {
+    const commonClassNames = formatArrayOfModuleTuples(modules);
+    if (debugOnlyModules.length > 0) {
+        return wrapInDebugConfigurationCheck(2, `return ${formatArrayOfModuleTuples(modules.concat(debugOnlyModules))}`, `return ${commonClassNames}`);
+    }
+    else {
+        return `${indent.repeat(2)}return ${commonClassNames}`;
+    }
+}
+/**
+ * Formats an array of modules config to Swift's array of module tuples.
+ */
+function formatArrayOfModuleTuples(modules) {
+    return `[${modules.map((module) => `\n${indent.repeat(3)}(module: ${module.class}.self, name: ${module.name ? `"${module.name}"` : 'nil'})`).join(',')}
+${indent.repeat(2)}]`;
+}
+function generateClasses(classNames, debugOnlyClassName) {
     const commonClassNames = formatArrayOfClassNames(classNames);
     if (debugOnlyClassName.length > 0) {
         return wrapInDebugConfigurationCheck(2, `return ${formatArrayOfClassNames(classNames.concat(debugOnlyClassName))}`, `return ${commonClassNames}`);
@@ -192,7 +223,7 @@ function wrapInDebugConfigurationCheck(indentationLevel, debugBlock, releaseBloc
     return `${indent.repeat(indentationLevel)}#if EXPO_CONFIGURATION_DEBUG\n${indent.repeat(indentationLevel)}${debugBlock}\n${indent.repeat(indentationLevel)}#endif`;
 }
 async function parseEntitlementsAsync(entitlementPath) {
-    if (!entitlementPath || !(await (0, fileUtils_1.fileExistsAsync)(entitlementPath))) {
+    if (!entitlementPath || !(await (0, utils_1.fileExistsAsync)(entitlementPath))) {
         return {};
     }
     const { stdout } = await (0, spawn_async_1.default)('plutil', ['-convert', 'json', '-o', '-', entitlementPath]);

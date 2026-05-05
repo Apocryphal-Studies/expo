@@ -1,7 +1,7 @@
 import { Platform } from 'expo-modules-core';
 
 import { optionalRequire } from '../../navigation/routeBuilder';
-import ComponentListScreen, { ListElement } from '../ComponentListScreen';
+import ComponentListScreen, { componentScreensToListElements } from '../ComponentListScreen';
 
 export const ImageScreens = [
   {
@@ -164,22 +164,49 @@ export const ImageScreens = [
 ];
 
 if (Platform.OS === 'ios') {
+  ImageScreens.push(
+    {
+      name: 'SF Symbols',
+      route: 'image/sf-symbols',
+      getComponent() {
+        return optionalRequire(() => require('./ImageSFSymbolScreen'));
+      },
+    },
+    {
+      name: 'Live Text Interaction',
+      route: 'image/live-text-interaction',
+      getComponent() {
+        return optionalRequire(() => require('./ImageLiveTextInteractionScreen'));
+      },
+    },
+    {
+      name: 'High Dynamic Range',
+      route: 'image/hdr',
+      getComponent() {
+        return optionalRequire(() => require('./ImageHDRScreen'));
+      },
+    },
+    {
+      name: 'Cache eviction',
+      route: 'image/cache-eviction',
+      getComponent() {
+        return optionalRequire(() => require('./ImageCacheEvictionScreen'));
+      },
+    }
+  );
+}
+
+if (Platform.OS === 'web') {
   ImageScreens.push({
-    name: 'Live Text Interaction',
-    route: 'image/live-text-interaction',
+    name: 'Lazy loading images',
+    route: 'image/lazy-loading',
     getComponent() {
-      return optionalRequire(() => require('./ImageLiveTextInteractionScreen'));
+      return optionalRequire(() => require('./ImageLazyLoadingScreen'));
     },
   });
 }
 
 export default function ImageScreen() {
-  const apis: ListElement[] = ImageScreens.map((screen) => {
-    return {
-      name: screen.name,
-      isAvailable: true,
-      route: `/components/${screen.route}`,
-    };
-  });
+  const apis = componentScreensToListElements(ImageScreens);
   return <ComponentListScreen apis={apis} sort={false} />;
 }

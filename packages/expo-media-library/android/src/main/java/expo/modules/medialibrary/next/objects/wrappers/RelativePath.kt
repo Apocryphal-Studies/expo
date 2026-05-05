@@ -6,7 +6,7 @@ import android.os.Environment
 value class RelativePath(val value: String) {
   init {
     require(
-      value.matches(Regex("""^[\w-]+(/[\w-]+)*/$"""))
+      value.matches(Regex("""^[\w -]+(/[\w -]+)*/$"""))
     ) { "Invalid relative path: $value" }
   }
 
@@ -21,10 +21,11 @@ value class RelativePath(val value: String) {
 
   companion object {
     fun create(mimeType: MimeType, albumName: String? = null): RelativePath {
-      val rootDirectory = mimeType.rootDirectory()
       if (albumName != null) {
+        val rootDirectory = mimeType.albumRootDirectory()
         return RelativePath("$rootDirectory/$albumName/")
       }
+      val rootDirectory = mimeType.assetRootDirectory()
       return RelativePath("$rootDirectory/")
     }
   }

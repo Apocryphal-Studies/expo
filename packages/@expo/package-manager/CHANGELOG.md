@@ -10,6 +10,38 @@
 
 ### 💡 Others
 
+## 1.10.3 — 2026-02-03
+
+_This version does not introduce any user-facing changes._
+
+## 1.10.2 — 2026-01-26
+
+_This version does not introduce any user-facing changes._
+
+## 1.10.1 — 2026-01-22
+
+_This version does not introduce any user-facing changes._
+
+## 1.10.0 — 2026-01-21
+
+### 🐛 Bug fixes
+
+- BunPackageManager supports text lock file `bun.lock` ([#42049](https://github.com/expo/expo/pull/42049) by [@AbbanMustafa](https://github.com/AbbanMustafa))
+
+## 1.9.9 - 2025-12-05
+
+_This version does not introduce any user-facing changes._
+
+## 1.9.8 — 2025-09-16
+
+### 🐛 Bug fixes
+
+- Sort dependencies when installing a dependency with expo-cli and NPM ([#39660](https://github.com/expo/expo/pull/39660) by [@blazejkustra](https://github.com/blazejkustra))
+
+## 1.9.7 — 2025-09-10
+
+_This version does not introduce any user-facing changes._
+
 ## 1.9.6 — 2025-09-02
 
 _This version does not introduce any user-facing changes._

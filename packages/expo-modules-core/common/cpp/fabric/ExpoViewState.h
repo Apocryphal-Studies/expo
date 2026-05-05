@@ -4,47 +4,24 @@
 
 #ifdef __cplusplus
 
-#ifdef ANDROID
-#include <folly/dynamic.h>
-#include <react/renderer/mapbuffer/MapBuffer.h>
-#include <react/renderer/mapbuffer/MapBufferBuilder.h>
-#endif
+#include <limits>
 
 namespace expo {
 
-class ExpoViewState final {
+class ExpoViewState {
 public:
-  ExpoViewState() {}
-  
-  ExpoViewState(float width, float height) {
-    if (width >= 0) {
-      _width = width;
-    } else {
-      _width = std::numeric_limits<float>::quiet_NaN();
-    }
-    if (height >= 0) {
-      _height = height;
-    } else {
-      _height = std::numeric_limits<float>::quiet_NaN();
-    }
-  };
+  ExpoViewState() = default;
 
-#ifdef ANDROID
-  ExpoViewState(ExpoViewState const &previousState, folly::dynamic data)
-  : _width((float)data["width"].getDouble()),
-    _height((float)data["height"].getDouble()){};
-  folly::dynamic getDynamic() const {
-    return {};
-  };
-
-  facebook::react::MapBuffer getMapBuffer() const {
-    return facebook::react::MapBufferBuilder::EMPTY();
-  };
-#endif
+  virtual ~ExpoViewState() = default;
   
+  ExpoViewState(float width, float height);
+  
+  static ExpoViewState withStyleDimensions(float styleWidth, float styleHeight);
+
   float _width = std::numeric_limits<float>::quiet_NaN();
   float _height = std::numeric_limits<float>::quiet_NaN();
-
+  float _styleWidth = std::numeric_limits<float>::quiet_NaN();
+  float _styleHeight = std::numeric_limits<float>::quiet_NaN();
 };
 
 } // namespace expo

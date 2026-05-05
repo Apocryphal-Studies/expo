@@ -1,4 +1,5 @@
-import { ConfigPlugin, IOSConfig, withAppDelegate, withDangerousMod } from '@expo/config-plugins';
+import type { ConfigPlugin } from '@expo/config-plugins';
+import { IOSConfig, withAppDelegate, withDangerousMod } from '@expo/config-plugins';
 import {
   addObjcImports,
   addSwiftImports,
@@ -143,9 +144,14 @@ export function updateModulesAppDelegateSwift(
     }
   }
 
-  // Add imports if needed
-  if (!contents.match(/^import\s+Expo\s*$/m)) {
+  // Add imports if needed.
+  // SDK 55+ uses `internal import` to match ExpoModulesProvider.swift (Swift 6 compatibility).
+  const useInternalImport = sdkVersion && semver.gte(sdkVersion, '55.0.0');
+  if (!contents.match(/^(internal\s+)?import\s+Expo\s*$/m)) {
     contents = addSwiftImports(contents, ['Expo']);
+    if (useInternalImport) {
+      contents = contents.replace(/^import Expo$/m, 'internal import Expo');
+    }
   }
 
   // Replace superclass with ExpoAppDelegate
@@ -158,14 +164,6 @@ export function updateModulesAppDelegateSwift(
     /\b(func application\([\s\S]+?didFinishLaunchingWithOptions launchOptions[\s\S]+?\{[\s\S]+?)(return true)([\s\S]+?\})/m,
     'override $1return super.application(application, didFinishLaunchingWithOptions: launchOptions)$3'
   );
-  // Add `bindReactNativeFactory`
-  if (!contents.match(/\bbindReactNativeFactory\(/)) {
-    contents = contents.replace(
-      /(\breactNativeFactory\s+?=\s+?factory$)/m,
-      `$1
-    bindReactNativeFactory(factory)`
-    );
-  }
 
   // Use Expo classes
   contents = contents.replace(/\b(RCTReactNativeFactory)(\()/, 'ExpoReactNativeFactory$2');

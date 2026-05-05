@@ -48,6 +48,30 @@ suspend fun ContentResolver.queryAlbumId(relativePath: RelativePath): String? =
     arrayOf(relativePath.value)
   )
 
+suspend fun ContentResolver.queryAlbumId(name: String): String? =
+  queryOne(
+    EXTERNAL_CONTENT_URI,
+    MediaStore.Files.FileColumns.BUCKET_ID,
+    Cursor::getString,
+    "${MediaStore.MediaColumns.BUCKET_DISPLAY_NAME} = ?",
+    arrayOf(name)
+  )
+
+suspend fun ContentResolver.queryAllAlbumIds(): List<String> =
+  withContext(Dispatchers.IO) {
+    val projection = arrayOf(MediaStore.Files.FileColumns.BUCKET_ID)
+
+    query(EXTERNAL_CONTENT_URI, projection, null, null, null)?.use { cursor ->
+      ensureActive()
+      val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
+      cursor
+        .asIterable()
+        .mapNotNull { it.getString(idColumn) }
+        .toSet()
+        .toList()
+    } ?: emptyList()
+  }
+
 suspend fun ContentResolver.queryAlbumAssetsContentUris(bucketId: String): List<Uri> =
   withContext(Dispatchers.IO) {
     val projection = arrayOf(

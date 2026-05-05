@@ -18,6 +18,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.json.JSONException
 import org.json.JSONObject
@@ -60,7 +63,8 @@ class RemoteLoaderTest {
       mockFileDownloader,
       File("testDirectory"),
       null,
-      mockLoaderFiles
+      mockLoaderFiles,
+      CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher())
     )
 
     val manifestString = CertificateFixtures.testExpoUpdatesManifestBody
@@ -72,7 +76,7 @@ class RemoteLoaderTest {
       directiveUpdateResponsePart = null
     )
 
-    coEvery { mockFileDownloader.downloadAsset(any(), any(), any(), any()) } answers {
+    coEvery { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) } answers {
       val asset = firstArg<AssetEntity>()
       FileDownloader.AssetDownloadResult(asset, true)
     }
@@ -85,7 +89,7 @@ class RemoteLoaderTest {
     }
 
     Assert.assertNotNull(result.updateEntity)
-    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -96,7 +100,7 @@ class RemoteLoaderTest {
 
   @Test
   fun testRemoteLoader_FailureToDownloadAssets() = runTest {
-    coEvery { mockFileDownloader.downloadAsset(any(), any(), any(), any()) } throws IOException("mock failed to download asset")
+    coEvery { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) } throws IOException("mock failed to download asset")
 
     try {
       loader.load { _ ->
@@ -106,7 +110,7 @@ class RemoteLoaderTest {
       Assert.assertEquals("mock failed to download asset", e.message)
     }
 
-    coVerify(atLeast = 1) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(atLeast = 1) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -133,7 +137,7 @@ class RemoteLoaderTest {
     Assert.assertNotNull(result.updateEntity)
 
     // only 1 asset (bundle) should be downloaded since the other asset already exists
-    coVerify(exactly = 1) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 1) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -162,7 +166,7 @@ class RemoteLoaderTest {
     Assert.assertNotNull(result.updateEntity)
 
     // both assets should be downloaded regardless of what the database says
-    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -196,7 +200,7 @@ class RemoteLoaderTest {
     }
 
     Assert.assertNotNull(result.updateEntity)
-    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -224,7 +228,7 @@ class RemoteLoaderTest {
     Assert.assertNotNull(result.updateEntity)
 
     // missing assets should still be downloaded
-    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -252,7 +256,7 @@ class RemoteLoaderTest {
     }
 
     Assert.assertNotNull(result.updateEntity)
-    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -278,7 +282,7 @@ class RemoteLoaderTest {
     }
 
     Assert.assertNotNull(result.updateEntity)
-    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(1, updates.size)
@@ -300,7 +304,7 @@ class RemoteLoaderTest {
 
     Assert.assertEquals(updateDirective, result.updateDirective)
     Assert.assertNull(result.updateEntity)
-    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 0) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     val updates = db.updateDao().loadAllUpdates()
     Assert.assertEquals(0, updates.size)
@@ -317,7 +321,7 @@ class RemoteLoaderTest {
       Loader.OnUpdateResponseLoadedResult(shouldDownloadManifestIfPresentInResponse = true)
     }
 
-    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any()) }
+    coVerify(exactly = 2) { mockFileDownloader.downloadAsset(any(), any(), any(), any(), any(), any()) }
 
     Assert.assertEquals(2, progressUpdates.size)
     Assert.assertEquals(0.5, progressUpdates[0], 0.001)

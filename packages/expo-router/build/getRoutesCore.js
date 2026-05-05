@@ -248,6 +248,15 @@ function getDirectoryTree(contextModule, options) {
                         defaultExport.constructor.name === 'AsyncFunction') {
                         throw new Error(`The default export from route "${filePath}" is an async function. Ensure the React Component does not use async or promises.`);
                     }
+                    // Validate loader export in development
+                    const loaderExport = routeModule?.loader;
+                    if (loaderExport && typeof loaderExport !== 'function') {
+                        throw new Error(`Route "${filePath}" exports a loader that is not a function.`);
+                    }
+                    const metadataExport = routeModule?.generateMetadata;
+                    if (metadataExport && typeof metadataExport !== 'function') {
+                        throw new Error(`Route "${filePath}" exports generateMetadata that is not a function.`);
+                    }
                 }
                 return routeModule;
             },
@@ -494,7 +503,9 @@ function getFileMeta(originalKey, options, redirects, rewrites) {
     let route = key;
     const parts = (0, matchers_1.removeFileSystemDots)(originalKey).split('/');
     const filename = parts[parts.length - 1];
-    const [filenameWithoutExtensions, platformExtension] = (0, matchers_1.removeSupportedExtensions)(filename).split('.');
+    const filenameParts = (0, matchers_1.removeSupportedExtensions)(filename).split('.');
+    const filenameWithoutExtensions = filenameParts[0];
+    const platformExtension = filenameParts[1];
     const isLayout = filenameWithoutExtensions === '_layout';
     const isApi = originalKey.match(/\+api\.(\w+\.)?[jt]sx?$/);
     if (filenameWithoutExtensions.startsWith('(') && filenameWithoutExtensions.endsWith(')')) {
@@ -723,6 +734,6 @@ function getMostSpecific(routes) {
     }
     // This works even tho routes is holey array (e.g it might have index 0 and 2 but not 1)
     // `.length` includes the holes in its count
-    return routes[routes.length - 1];
+    return route;
 }
 //# sourceMappingURL=getRoutesCore.js.map

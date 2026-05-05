@@ -1,16 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 
-import { DoctorCheck, DoctorCheckParams, DoctorCheckResult } from './checks.types';
+import type { DoctorCheck, DoctorCheckParams, DoctorCheckResult } from './checks.types';
 import { Log } from '../utils/log';
-import {
-  getVersionedNativeModuleNamesAsync,
-  VersionedNativeModuleNamesCache,
-} from '../utils/versionedNativeModules';
+import type { VersionedNativeModuleNamesCache } from '../utils/versionedNativeModules';
+import { getVersionedNativeModuleNamesAsync } from '../utils/versionedNativeModules';
 
 interface PackageJson {
   name: string;
   version: string;
+  dependencies?: Record<string, string>;
   peerDependencies?: Record<string, string>;
   peerDependenciesMeta?: Record<string, { optional?: boolean }>;
 }
@@ -70,10 +69,11 @@ export class PeerDependencyChecks implements DoctorCheck<DoctorCache> {
 
     const groupedByMissingPeerDependency = filteredPeerDependencyIssues.reduce(
       (acc, issue) => {
-        if (acc[issue.missingPeerDependency]) {
-          acc[issue.missingPeerDependency].push(issue.requiredBy);
+        const { missingPeerDependency } = issue;
+        if (acc[missingPeerDependency]) {
+          acc[missingPeerDependency].push(issue.requiredBy);
         } else {
-          acc[issue.missingPeerDependency] = [issue.requiredBy];
+          acc[missingPeerDependency] = [issue.requiredBy];
         }
         return acc;
       },
@@ -128,9 +128,13 @@ export class PeerDependencyChecks implements DoctorCheck<DoctorCache> {
 
       await Promise.all(
         Object.keys(packageJson.peerDependencies).map(async (peerDepName) => {
-          const isOptional = packageJson.peerDependenciesMeta?.[peerDepName]?.optional;
+          // NOTE(@kitten): A peer dependency can be optional or it can also be a regular dependency
+          // - If it's also a regular dependency, it's always auto-installed
+          // - If it's optional, it isn't strictly required to be installed
+          const isRegularDep = !!packageJson.dependencies?.[peerDepName];
+          const isOptional = !!packageJson.peerDependenciesMeta?.[peerDepName]?.optional;
 
-          if (!isOptional && !installedDependencies[peerDepName]) {
+          if (!isOptional && !isRegularDep && !installedDependencies[peerDepName]) {
             issues.push({
               missingPeerDependency: peerDepName,
               requiredBy: packageName,

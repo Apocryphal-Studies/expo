@@ -10,17 +10,30 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const autolinkingOptions_1 = require("./autolinkingOptions");
 const dependencies_1 = require("../dependencies");
+// NOTE(@kitten): These are excluded explicitly, but we want to include them for the verify command explicitly
+const INCLUDE_PACKAGES = ['react-native', 'react-native-tvos'];
+const AUTOLINKING_PLATFORMS = ['android', 'ios', 'web'];
 function verifyCommand(cli) {
     return (0, autolinkingOptions_1.registerAutolinkingArguments)(cli.command('verify'))
         .option('-v, --verbose', 'Output all results instead of just warnings.', () => true, false)
         .option('-j, --json', 'Output results in the plain JSON format.', () => true, false)
-        .option('-p, --platform [platform]', 'The platform to validate native modules for. Available options: "android", "ios", "both"', 'both')
+        .option('-p, --platform [platform]', `The platform to validate native modules for. Available options: ${[...AUTOLINKING_PLATFORMS, 'native', 'all'].map((x) => `"${x}"`).join(', ')}`, 'all')
         .action(async (commandArguments) => {
-        const platforms = commandArguments.platform === 'both' ? ['android', 'ios'] : [commandArguments.platform];
+        let platforms;
+        // NOTE(@kitten): Preserve `both` for backwards-compatibility
+        if (commandArguments.platform === 'both' || commandArguments.platform === 'native') {
+            platforms = ['android', 'ios'];
+        }
+        else if (commandArguments.platform === 'all') {
+            platforms = AUTOLINKING_PLATFORMS;
+        }
+        else {
+            platforms = [commandArguments.platform];
+        }
         const autolinkingOptionsLoader = (0, autolinkingOptions_1.createAutolinkingOptionsLoader)(commandArguments);
         const appRoot = await autolinkingOptionsLoader.getAppRoot();
         const linker = (0, dependencies_1.makeCachedDependenciesLinker)({ projectRoot: appRoot });
-        const results = (0, dependencies_1.mergeResolutionResults)(await Promise.all(platforms.map((platform) => (0, dependencies_1.scanDependencyResolutionsForPlatform)(linker, platform))));
+        const results = (0, dependencies_1.mergeResolutionResults)(await Promise.all(platforms.map((platform) => (0, dependencies_1.scanDependencyResolutionsForPlatform)(linker, platform, INCLUDE_PACKAGES))));
         await verifySearchResults(results, {
             appRoot,
             verbose: !!commandArguments.verbose,
@@ -68,13 +81,13 @@ async function verifySearchResults(results, options) {
         }
         else {
             switch (revision.source) {
-                case 2 /* DependencyResolutionSource.RN_CLI_LOCAL */:
+                case dependencies_1.DependencyResolutionSource.RN_CLI_LOCAL:
                     groups.reactNativeProjectConfig.push(revision);
                     break;
-                case 1 /* DependencyResolutionSource.SEARCH_PATH */:
+                case dependencies_1.DependencyResolutionSource.SEARCH_PATH:
                     groups.searchPaths.push(revision);
                     break;
-                case 0 /* DependencyResolutionSource.RECURSIVE_RESOLUTION */:
+                case dependencies_1.DependencyResolutionSource.RECURSIVE_RESOLUTION:
                     groups.dependencies.push(revision);
                     break;
             }
@@ -85,20 +98,21 @@ async function verifySearchResults(results, options) {
         return;
     }
     if (options.verbose) {
+        const sortResolutions = (resolutions) => [...resolutions].sort((a, b) => a.name.localeCompare(b.name));
         if (groups.reactNativeProjectConfig.length) {
             console.log(`🔎  Found ${groups.reactNativeProjectConfig.length} modules from React Native project config`);
-            for (const revision of groups.reactNativeProjectConfig) {
+            for (const revision of sortResolutions(groups.reactNativeProjectConfig)) {
                 console.log(` - ${await getHumanReadableDependency(revision)}`);
             }
         }
         if (groups.searchPaths.length) {
             console.log(`🔎  Found ${groups.searchPaths.length} modules in search paths`);
-            for (const revision of groups.searchPaths) {
+            for (const revision of sortResolutions(groups.searchPaths)) {
                 console.log(` - ${await getHumanReadableDependency(revision)}`);
             }
         }
         console.log(`🔎  Found ${groups.dependencies.length} modules in dependencies`);
-        for (const revision of groups.dependencies) {
+        for (const revision of sortResolutions(groups.dependencies)) {
             console.log(` - ${await getHumanReadableDependency(revision)}`);
         }
     }

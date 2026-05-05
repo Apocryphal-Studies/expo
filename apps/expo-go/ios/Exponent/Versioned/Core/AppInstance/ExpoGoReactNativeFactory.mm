@@ -1,7 +1,11 @@
 
 #import "ExpoGoReactNativeFactory.h"
+#import "ExpoAppInstance.h"
 #import <RCTAppSetupUtils.h>
 #import <React/CoreModulesPlugins.h>
+#import <ExpoModulesCore/EXHostWrapper.h>
+#import <ExpoModulesCore-Swift.h>
+
 
 @implementation ExpoGoReactNativeFactory
 
@@ -32,6 +36,24 @@
   if ([self.delegate respondsToSelector:@selector(loadBundleAtURL:onProgress:onComplete:)]) {
     [self.delegate loadBundleAtURL:sourceURL onProgress:onProgress onComplete:loadCallback];
   }
+}
+
+- (void)hostDidStart:(nonnull RCTHost *)host {
+  if ([self.delegate respondsToSelector:@selector(hostDidStart:)]) {
+    [self.delegate hostDidStart:host];
+  }
+}
+
+- (void)host:(nonnull RCTHost *)host didInitializeRuntime:(facebook::jsi::Runtime &)runtime
+{
+  ExpoAppInstance *appInstance = (ExpoAppInstance *)self.delegate;
+  EXAppContext *appContext = [appInstance createExpoGoAppContext];
+
+  // Inject and decorate the `global.expo` object
+  [appContext setRuntime:&runtime];
+  [appContext setHostWrapper:[[EXHostWrapper alloc] initWithHost:host]];
+
+  [appContext registerNativeModules];
 }
 
 @end

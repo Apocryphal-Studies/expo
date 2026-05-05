@@ -1,17 +1,29 @@
-import { Button, Host, Picker, Switch, ContextMenu, Submenu } from '@expo/ui/swift-ui';
+import {
+  Button,
+  Host,
+  Picker,
+  Toggle,
+  ContextMenu,
+  Text,
+  Section as SwiftUISection,
+  Image,
+  List,
+  Section,
+  Divider,
+  RNHostView,
+} from '@expo/ui/swift-ui';
+import { buttonStyle, foregroundStyle, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import * as React from 'react';
-import { View, StyleSheet, Text } from 'react-native';
-
-import { Section } from '../../components/Page';
+import { View, StyleSheet, Text as RNText } from 'react-native';
 
 const videoLink =
   'https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_2MB.mp4';
 
 export default function ContextMenuScreen() {
-  const [selectedIndex, setSelectedIndex] = React.useState<number | null>(1);
-  const [switchChecked, setSwitchChecked] = React.useState<boolean>(true);
-  const [switch2Checked, setSwitch2Checked] = React.useState<boolean>(true);
+  const [selectedIndex, setSelectedIndex] = React.useState<number | undefined>(1);
+  const [toggleChecked, setToggleChecked] = React.useState<boolean>(true);
+  const [toggle2Checked, setToggle2Checked] = React.useState<boolean>(true);
 
   const player = useVideoPlayer(videoLink, (player) => {
     player.loop = true;
@@ -20,78 +32,143 @@ export default function ContextMenuScreen() {
   });
 
   return (
-    <View>
-      <Section title="Single-Press Context Menu" row>
-        <Host style={{ width: 150, height: 50 }}>
+    <Host style={{ flex: 1 }}>
+      <List>
+        <Section title="Basic Context Menu">
           <ContextMenu>
             <ContextMenu.Items>
               <Button
+                label="Hello"
                 systemImage="person.crop.circle.badge.xmark"
-                onPress={() => console.log('Pressed1')}>
-                Hello
-              </Button>
+                onPress={() => console.log('Pressed1')}
+              />
               <Button
-                variant="bordered"
+                label="I love"
                 systemImage="heart"
-                onPress={() => console.log('Pressed2')}>
-                I love
-              </Button>
-              <Picker
-                label="Doggos"
-                options={['very', 'veery', 'veeery', 'much']}
-                variant="menu"
-                selectedIndex={selectedIndex}
-                onOptionSelected={({ nativeEvent: { index } }) => setSelectedIndex(index)}
+                modifiers={[buttonStyle('bordered')]}
+                onPress={() => console.log('Pressed2')}
               />
             </ContextMenu.Items>
             <ContextMenu.Trigger>
-              <Button variant="bordered">Show Menu</Button>
+              <Text modifiers={[foregroundStyle('accentColor')]}>Show menu</Text>
             </ContextMenu.Trigger>
           </ContextMenu>
-        </Host>
-      </Section>
-      <Section title="Long-Press Context Menu" row>
-        <Host style={styles.longPressMenu}>
-          <ContextMenu activationMethod="longPress">
+        </Section>
+        <Section title="Context Menu with Picker">
+          <ContextMenu modifiers={[buttonStyle('bordered')]}>
             <ContextMenu.Items>
-              <Switch
-                value={switchChecked}
-                label="Do u love doggos?"
-                variant="checkbox"
-                onValueChange={setSwitchChecked}
+              <Button
+                label="Hello"
+                systemImage="person.crop.circle.badge.xmark"
+                onPress={() => console.log('Pressed1')}
               />
-              <Switch
-                value={switch2Checked}
-                variant="switch"
-                label="Will u marry doggos?"
-                onValueChange={setSwitch2Checked}
+              <Button
+                label="I love"
+                systemImage="heart"
+                modifiers={[buttonStyle('bordered')]}
+                onPress={() => console.log('Pressed2')}
               />
-              <Button role="destructive" systemImage="hand.thumbsdown">
-                I don't like doggos 😡
-              </Button>
-              <Submenu button={<Button systemImage="heart.slash">Evil submenu</Button>}>
-                <Button>I hate</Button>
-                <Button>doggos</Button>
-                <Submenu button={<Button>👹Very evil submenu 👺</Button>}>
-                  <Button>I KILL</Button>
-                  <Button>DOGGOS</Button>
-                </Submenu>
-              </Submenu>
+              <Picker
+                label="Doggos"
+                modifiers={[pickerStyle('menu')]}
+                selection={selectedIndex}
+                onSelectionChange={setSelectedIndex}>
+                {['very', 'veery', 'veeery', 'much'].map((option, index) => (
+                  <Text key={index} modifiers={[tag(index)]}>
+                    {option}
+                  </Text>
+                ))}
+              </Picker>
             </ContextMenu.Items>
             <ContextMenu.Trigger>
-              <View style={styles.longPressMenu}>
-                <VideoView player={player} style={styles.longPressMenu} contentFit="cover" />
-              </View>
+              <Text modifiers={[foregroundStyle('accentColor')]}>Show Menu</Text>
+            </ContextMenu.Trigger>
+          </ContextMenu>
+        </Section>
+        <Section title="Context Menu with Preview">
+          <ContextMenu>
+            <ContextMenu.Items>
+              <Toggle
+                isOn={toggleChecked}
+                label="Do u love doggos?"
+                onIsOnChange={setToggleChecked}
+              />
+              <Toggle
+                isOn={toggle2Checked}
+                label="Will u marry doggos?"
+                systemImage="heart.slash"
+                onIsOnChange={setToggle2Checked}
+              />
+              <Button
+                role="destructive"
+                systemImage="hand.thumbsdown"
+                label="I don't like doggos 😡"
+              />
+              <ContextMenu>
+                <ContextMenu.Items>
+                  <Button label="I hate" />
+                  <Button label="doggos" />
+                  <ContextMenu>
+                    <ContextMenu.Items>
+                      <Button label="I KILL" />
+                      <Button label="DOGGOS" />
+                    </ContextMenu.Items>
+                    <ContextMenu.Trigger>
+                      <Button label="👹Very evil submenu 👺" />
+                    </ContextMenu.Trigger>
+                  </ContextMenu>
+                </ContextMenu.Items>
+                <ContextMenu.Trigger>
+                  <Button systemImage="heart.slash" label="Evil submenu" />
+                </ContextMenu.Trigger>
+              </ContextMenu>
+            </ContextMenu.Items>
+            <ContextMenu.Trigger>
+              <RNHostView matchContents>
+                <View style={styles.longPressMenu}>
+                  <VideoView player={player} style={styles.longPressMenu} contentFit="cover" />
+                </View>
+              </RNHostView>
             </ContextMenu.Trigger>
             <ContextMenu.Preview>
               <View style={styles.preview}>
-                <Text>This is a preview</Text>
+                <RNText>This is a preview</RNText>
               </View>
             </ContextMenu.Preview>
           </ContextMenu>
-        </Host>
-      </Section>
-    </View>
+        </Section>
+        <Section title="SwiftUI Section and Divider Components">
+          <ContextMenu modifiers={[buttonStyle('glass')]}>
+            <ContextMenu.Items>
+              <Button role="destructive" label="Delete" />
+              <Divider />
+              <Button onPress={() => console.log('Pressed3')} label="Add to favorites" />
+              <SwiftUISection title="Primary actions">
+                <Button onPress={() => console.log('Pressed1')} label="First" />
+                <Button onPress={() => console.log('Pressed2')} label="Second" />
+              </SwiftUISection>
+            </ContextMenu.Items>
+            <ContextMenu.Trigger>
+              <Text modifiers={[foregroundStyle('accentColor')]}>Show menu</Text>
+            </ContextMenu.Trigger>
+          </ContextMenu>
+        </Section>
+        <Section title="Menu item with title and subtitle">
+          <ContextMenu modifiers={[buttonStyle('glass')]}>
+            <ContextMenu.Items>
+              <Button role="destructive">
+                <Image systemName="trash" />
+                <Text>Red color item</Text>
+                <Text>Subtitle</Text>
+              </Button>
+            </ContextMenu.Items>
+            <ContextMenu.Trigger>
+              <Text>Show Menu</Text>
+            </ContextMenu.Trigger>
+          </ContextMenu>
+        </Section>
+      </List>
+    </Host>
   );
 }
 

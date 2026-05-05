@@ -1,5 +1,6 @@
 import JsonFile from '@expo/json-file';
-import spawnAsync, { SpawnOptions } from '@expo/spawn-async';
+import type { SpawnOptions } from '@expo/spawn-async';
+import spawnAsync from '@expo/spawn-async';
 import npmPackageArg from 'npm-package-arg';
 import path from 'path';
 
@@ -122,6 +123,28 @@ export class NpmPackageManager extends BasePackageManager {
     return result;
   }
 
+  /** Sort dependencies by keys (case-insensitive, stable). Sorting algorithm is taken from https://github.com/npm/package-json/blob/f5db81bdfbba5e9d3bfc0732f8bfe511825a20aa/lib/update-dependencies.js#L9 */
+  private orderDependencies(deps: Record<string, string> | undefined): Record<string, string> {
+    if (!deps) {
+      return {};
+    }
+
+    const sorted = Object.keys(deps)
+      .sort((a, b) => a.localeCompare(b, 'en'))
+      .reduce(
+        (res, key) => {
+          const dep = deps[key];
+          if (dep != null) {
+            res[key] = dep;
+          }
+          return res;
+        },
+        {} as Record<string, string>
+      );
+
+    return sorted;
+  }
+
   /**
    * Older npm versions have issues with mismatched nested dependencies when adding exact versions.
    * This propagates as issues like mismatched `@expo/config-pugins` versions.
@@ -143,6 +166,8 @@ export class NpmPackageManager extends BasePackageManager {
       pkg[packageType] = pkg[packageType] || {};
       pkg[packageType][spec.name!] = spec.rawSpec;
     });
+
+    pkg[packageType] = this.orderDependencies(pkg[packageType]);
 
     await JsonFile.writeAsync(pkgPath, pkg, { json5: false });
   }

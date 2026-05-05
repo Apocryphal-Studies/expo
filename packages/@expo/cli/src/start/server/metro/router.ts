@@ -1,6 +1,6 @@
-import { ExpoConfig } from '@expo/config';
-import type { MiddlewareMatcher } from '@expo/server/build/types';
+import type { ExpoConfig } from '@expo/config';
 import chalk from 'chalk';
+import type { MiddlewareMatcher } from 'expo-server';
 import { sync as globSync } from 'glob';
 import path from 'path';
 import resolveFrom from 'resolve-from';
@@ -102,7 +102,7 @@ export function getMiddlewareForDirectory(cwd: string): string | null {
     }
   }
 
-  return files[0];
+  return files[0]!;
 }
 
 // Used to emulate a context module, but way faster. TODO: May need to adjust the extensions to stay in sync with Metro.

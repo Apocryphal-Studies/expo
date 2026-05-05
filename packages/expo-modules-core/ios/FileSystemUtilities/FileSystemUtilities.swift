@@ -6,6 +6,8 @@ public enum FileSystemPermissionFlags {
   case write
 }
 
+let validSchemas = ["assets-library", "http", "https", "ph"]
+
 public struct FileSystemUtilities {
   @discardableResult
   public static func ensureDirExists(at url: URL?) -> Bool {
@@ -38,7 +40,6 @@ public struct FileSystemUtilities {
     guard let scheme = uri.scheme else {
       return [.none]
     }
-    let validSchemas = ["assets-library", "http", "https", "ph"]
 
     if validSchemas.contains(scheme) {
       return [.read]
@@ -51,6 +52,24 @@ public struct FileSystemUtilities {
     return [.none]
   }
 
+  public static func isReadableFile(_ appContext: AppContext?, _ uri: URL) -> Bool {
+    if(!permissions(appContext, for: uri).contains(.read)) {
+      return false
+    }
+
+    let validSchemas = ["assets-library", "http", "https", "ph"]
+
+    guard let scheme = uri.scheme else {
+      return false
+    }
+
+    if validSchemas.contains(scheme) {
+      return true
+    }
+
+    return FileManager.default.isReadableFile(atPath: uri.path)
+  }
+
   private static func getPathPermissions(_ appContext: AppContext?, for path: URL) -> [FileSystemPermissionFlags] {
     let permissionForInternalDirs = getInternalPathPermissions(appContext, for: path)
     if !permissionForInternalDirs.contains(.none) {
@@ -59,7 +78,7 @@ public struct FileSystemUtilities {
     return getExternalPathPermissions(path, appContext)
   }
 
-  private static func getInternalPathPermissions(_ appContext: AppContext?, for url: URL) -> [FileSystemPermissionFlags] {
+  public static func getInternalPathPermissions(_ appContext: AppContext?, for url: URL) -> [FileSystemPermissionFlags] {
     guard let appContext else {
       return [.none]
     }
@@ -88,17 +107,9 @@ public struct FileSystemUtilities {
     if appContext?.config.scoped ?? false && url.path.contains("ExponentExperienceData") {
       return []
     }
-    var filePermissions: [FileSystemPermissionFlags] = []
 
-    if FileManager.default.isReadableFile(atPath: url.path) {
-      filePermissions.append(.read)
-    }
-
-    if FileManager.default.isWritableFile(atPath: url.path) {
-      filePermissions.append(.write)
-    }
-
-    return filePermissions
+    // Defer permission checks for external paths to the underlying system at the time of file operations
+    return [.read, .write]
   }
 
   private static func getAppGroupSharedDirectories(_ appContext: AppContext) -> [String] {

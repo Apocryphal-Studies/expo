@@ -34,6 +34,7 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.renderRootComponent = renderRootComponent;
+const jsx_runtime_1 = require("react/jsx-runtime");
 const expo_1 = require("expo");
 const React = __importStar(require("react"));
 const react_native_1 = require("react-native");
@@ -78,18 +79,15 @@ function convertError(error) {
  */
 function renderRootComponent(Component) {
     try {
+        if (process.env.NODE_ENV !== 'production') {
+            require('@expo/log-box/lib').setupLogBox();
+        }
         // This must be delayed so the user has a chance to call it first.
         setTimeout(() => {
             SplashScreen._internal_preventAutoHideAsync?.();
         });
         React.startTransition(() => {
-            if (process.env.NODE_ENV !== 'production') {
-                const { withErrorOverlay } = require('@expo/metro-runtime/error-overlay');
-                (0, expo_1.registerRootComponent)(withErrorOverlay(Component));
-            }
-            else {
-                (0, expo_1.registerRootComponent)(Component);
-            }
+            (0, expo_1.registerRootComponent)(Component);
         });
     }
     catch (e) {
@@ -100,7 +98,7 @@ function renderRootComponent(Component) {
         //  ERROR  Invariant Violation: "main" has not been registered. This can happen if:
         // * Metro (the local dev server) is run from the wrong folder. Check if Metro is running, stop it and restart it in the current project.
         // * A module failed to load due to an error and `AppRegistry.registerComponent` wasn't called.
-        (0, expo_1.registerRootComponent)(() => <react_native_1.View />);
+        (0, expo_1.registerRootComponent)(() => (0, jsx_runtime_1.jsx)(react_native_1.View, {}));
         // Console is pretty useless on native, on web you get interactive stack traces.
         if (process.env.EXPO_OS === 'web') {
             console.error(error);

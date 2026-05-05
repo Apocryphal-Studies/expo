@@ -4,7 +4,7 @@ description: A library that provides access to a database that can be queried th
 sourceCodeUrl: 'https://github.com/expo/expo/tree/sdk-54/packages/expo-sqlite'
 packageName: 'expo-sqlite'
 iconUrl: '/static/images/packages/expo-sqlite.png'
-platforms: ['android', 'ios', 'macos', 'tvos', 'web']
+platforms: ['android', 'ios', 'macos', 'tvos', 'web', 'expo-go']
 ---
 
 import APISection from '~/components/plugins/APISection';
@@ -23,7 +23,7 @@ import { Step } from '~/ui/components/Step';
 
 ## Configuration in app config
 
-You can configure `expo-sqlite` for advanced configurations using its built-in [config plugin](/config-plugins/introduction/) if you use config plugins in your project ([EAS Build](/build/introduction) or `npx expo run:[android|ios]`). The plugin allows you to configure various properties that cannot be set at runtime and require building a new app binary to take effect.
+You can configure `expo-sqlite` for advanced configurations using its built-in [config plugin](/config-plugins/introduction/) if you use config plugins in your project ([Continuous Native Generation (CNG)](/workflow/continuous-native-generation/)). The plugin allows you to configure various properties that cannot be set at runtime and require building a new app binary to take effect. If your app does **not** use CNG, then you'll need to manually configure the library.
 
 <ConfigPluginExample>
 
@@ -83,7 +83,7 @@ You can configure `expo-sqlite` for advanced configurations using its built-in [
 
 ## Web setup
 
-> **important** Web support is experimental and may be unstable. [Create an issue on GitHub](https://github.com/expo/expo/issues) if you encounter any issues.
+> **important** Web support is in alpha and may be unstable. [Create an issue on GitHub](https://github.com/expo/expo/issues) if you encounter any issues.
 
 To use `expo-sqlite` on web, you need to configure Metro bundler to support **wasm** files and add HTTP headers to allow [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer) usage.
 
@@ -405,11 +405,11 @@ Configure the App Group in app config:
 
 <Step label="2">
 
-Use [`Paths.appleSharedContainers`](filesystem-next/#applesharedcontainers) from the [`expo-file-system`](filesystem-next/) library to retrieve the path to the shared container:
+Use [`Paths.appleSharedContainers`](filesystem/#applesharedcontainers) from the [`expo-file-system`](filesystem/) library to retrieve the path to the shared container:
 
 ```tsx Using Shared Container for SQLite Database on iOS
 import { SQLiteProvider, defaultDatabaseDirectory } from 'expo-sqlite';
-import { Paths } from 'expo-file-system/next';
+import { Paths } from 'expo-file-system';
 import { useMemo } from 'react';
 import { Platform, View } from 'react-native';
 

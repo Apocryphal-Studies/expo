@@ -1,72 +1,99 @@
-import { StyleProp, ViewStyle } from 'react-native';
-import { MaterialIcon } from './types';
-import { ExpoModifier, ViewEvent } from '../../types';
+import { type ColorValue } from 'react-native';
+import type { ModifierConfig, ViewEvent } from '../../types';
+import { type ShapeJSXElement, type ShapeRecordProps } from '../Shape';
 /**
- * The built-in button styles available on Android.
- * - `outlined` - A button with an outline.
- * - `elevated` - A filled button with a shadow.
+ * Colors for button elements.
  */
-export type ButtonVariant = 'default' | 'bordered' | 'borderless' | 'outlined' | 'elevated';
+export type ButtonColors = {
+    containerColor?: ColorValue;
+    contentColor?: ColorValue;
+    disabledContainerColor?: ColorValue;
+    disabledContentColor?: ColorValue;
+};
 /**
- * Colors for button's core elements.
+ * Content padding for the button's inner content.
+ * All values are in density-independent pixels (dp).
  */
-export type ButtonElementColors = {
-    containerColor?: string;
-    contentColor?: string;
-    disabledContainerColor?: string;
-    disabledContentColor?: string;
+export type ButtonContentPadding = {
+    start?: number;
+    top?: number;
+    end?: number;
+    bottom?: number;
 };
 export type ButtonProps = {
     /**
-     * A callback that is called when the button is pressed.
+     * Callback that is called when the button is clicked.
      */
-    onPress?: () => void;
+    onClick?: () => void;
     /**
-     * A string describing the system image to display in the button.
-     * Uses Material Icons on Android.
+     * Whether the button is enabled for user interaction.
+     * @default true
      */
-    systemImage?: MaterialIcon;
+    enabled?: boolean;
     /**
-     * The button variant.
+     * Colors for button elements.
      */
-    variant?: ButtonVariant;
+    colors?: ButtonColors;
     /**
-     * Additional styles to apply to the button.
+     * The padding between the button container and its content.
+     * Use this to adjust internal spacing, for example when adding a leading icon
      */
-    style?: StyleProp<ViewStyle>;
+    contentPadding?: ButtonContentPadding;
     /**
-     * The text to display inside the button.
+     * The shape of the button.
      */
-    children: string;
+    shape?: ShapeJSXElement;
     /**
-     * Colors for button's core elements.
-     * @platform android
+     * Modifiers for the component.
      */
-    elementColors?: ButtonElementColors;
+    modifiers?: ModifierConfig[];
     /**
-     * Button color.
+     * Content to display inside the button.
      */
-    color?: string;
-    /**
-     * Disabled state of the button.
-     */
-    disabled?: boolean;
-    /** Modifiers for the component */
-    modifiers?: ExpoModifier[];
+    children: React.ReactNode;
 };
-/**
- * @hidden
- */
-export type NativeButtonProps = Omit<ButtonProps, 'role' | 'onPress' | 'children' | 'systemImage'> & {
-    text: string;
-    systemImage?: string;
+type NativeButtonProps = Omit<ButtonProps, 'onClick' | 'shape' | 'children'> & {
+    shape?: ShapeRecordProps;
+    children?: React.ReactNode;
 } & ViewEvent<'onButtonPressed', void>;
 /**
  * @hidden
  */
-export declare function transformButtonProps(props: ButtonProps): NativeButtonProps;
+export declare function transformButtonProps(props: Omit<ButtonProps, 'children'>): NativeButtonProps;
 /**
- * Displays a native button component.
+ * A filled button component.
  */
-export declare function Button(props: ButtonProps): import("react").JSX.Element;
+export declare const Button: {
+    (props: ButtonProps): import("react/jsx-runtime").JSX.Element;
+    displayName: string;
+};
+/**
+ * A filled tonal button component.
+ */
+export declare const FilledTonalButton: {
+    (props: ButtonProps): import("react/jsx-runtime").JSX.Element;
+    displayName: string;
+};
+/**
+ * An outlined button component.
+ */
+export declare const OutlinedButton: {
+    (props: ButtonProps): import("react/jsx-runtime").JSX.Element;
+    displayName: string;
+};
+/**
+ * An elevated button component.
+ */
+export declare const ElevatedButton: {
+    (props: ButtonProps): import("react/jsx-runtime").JSX.Element;
+    displayName: string;
+};
+/**
+ * A text button component.
+ */
+export declare const TextButton: {
+    (props: ButtonProps): import("react/jsx-runtime").JSX.Element;
+    displayName: string;
+};
+export {};
 //# sourceMappingURL=index.d.ts.map

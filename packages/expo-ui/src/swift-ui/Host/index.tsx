@@ -1,6 +1,5 @@
 import { requireNativeView } from 'expo';
-import { useState } from 'react';
-import { StyleProp, ViewStyle, type ColorSchemeName } from 'react-native';
+import { I18nManager, type StyleProp, type ViewStyle } from 'react-native';
 
 import { createViewModifierEventListener } from '../modifiers/utils';
 import { type CommonViewModifierProps } from '../types';
@@ -8,6 +7,7 @@ import { type CommonViewModifierProps } from '../types';
 export type HostProps = {
   /**
    * When true, the host view will update its size in the React Native view tree to match the content's layout from SwiftUI.
+   * Can be only set once on mount.
    * @default false
    */
   matchContents?: boolean | { vertical?: boolean; horizontal?: boolean };
@@ -28,43 +28,57 @@ export type HostProps = {
   /**
    * The color scheme of the host view.
    */
-  colorScheme?: ColorSchemeName;
+  colorScheme?: 'light' | 'dark';
+
+  /**
+   * The layout direction for the SwiftUI content.
+   * Defaults to the current locale direction from I18nManager.
+   */
+  layoutDirection?: 'leftToRight' | 'rightToLeft';
+
+  /**
+   * Controls which safe area regions the SwiftUI hosting view should ignore. Can only be set once on mount.
+   * - `'all'`- ignores all safe area insets.
+   * - `'keyboard'` - ignores only the keyboard safe area.
+   */
+  ignoreSafeArea?: 'all' | 'keyboard';
 
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 } & CommonViewModifierProps;
 
-const HostNativeView: React.ComponentType<HostProps> = requireNativeView('ExpoUI', 'HostView');
+const HostNativeView: React.ComponentType<
+  HostProps & { matchContentsVertical?: boolean; matchContentsHorizontal?: boolean }
+> = requireNativeView('ExpoUI', 'HostView');
 
 /**
  * A hosting component for SwiftUI views.
  */
 export function Host(props: HostProps) {
-  const { matchContents, onLayoutContent, style, modifiers, ...restProps } = props;
-  const [containerStyle, setContainerStyle] = useState<ViewStyle | null>(null);
+  const {
+    matchContents,
+    onLayoutContent,
+    ignoreSafeArea,
+    modifiers,
+    layoutDirection,
+    ...restProps
+  } = props;
 
   return (
     <HostNativeView
       modifiers={modifiers}
       {...(modifiers ? createViewModifierEventListener(modifiers) : undefined)}
-      style={[style, containerStyle]}
-      onLayoutContent={(e) => {
-        onLayoutContent?.(e);
-        if (matchContents) {
-          const matchVertical =
-            typeof matchContents === 'object' ? matchContents.vertical : matchContents;
-          const matchHorizontal =
-            typeof matchContents === 'object' ? matchContents.horizontal : matchContents;
-          const newContainerStyle: ViewStyle = {};
-          if (matchVertical) {
-            newContainerStyle.height = e.nativeEvent.height;
-          }
-          if (matchHorizontal) {
-            newContainerStyle.width = e.nativeEvent.width;
-          }
-          setContainerStyle(newContainerStyle);
-        }
-      }}
+      matchContentsVertical={
+        typeof matchContents === 'object' ? matchContents.vertical : matchContents
+      }
+      matchContentsHorizontal={
+        typeof matchContents === 'object' ? matchContents.horizontal : matchContents
+      }
+      onLayoutContent={onLayoutContent}
+      layoutDirection={
+        layoutDirection ?? (I18nManager.getConstants().isRTL ? 'rightToLeft' : 'leftToRight')
+      }
+      ignoreSafeArea={ignoreSafeArea}
       {...restProps}
     />
   );

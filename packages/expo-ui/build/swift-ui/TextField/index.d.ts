@@ -1,70 +1,104 @@
-import { Ref } from 'react';
-import { type ViewEvent } from '../../types';
-import { type CommonViewModifierProps } from '../types';
+import type { Ref } from 'react';
+import type { ObservableState } from '../../State/useNativeState';
+import type { ViewEvent } from '../../types';
+import type { CommonViewModifierProps } from '../types';
 /**
- * Determines which keyboard to open. For example, `'numeric'`.
- *
- * Available options:
- * - default
- * - numeric
- * - email-address
- * - phone-pad
- * - decimal-pad
- * - ascii-capable
- * - url
- * - numbers-and-punctuation
- * - name-phone-pad
- * - twitter
- * - web-search
- * - ascii-capable-number-pad
- *
- * @default default
- */
-export type TextFieldKeyboardType = 'default' | 'email-address' | 'numeric' | 'phone-pad' | 'ascii-capable' | 'numbers-and-punctuation' | 'url' | 'name-phone-pad' | 'decimal-pad' | 'twitter' | 'web-search' | 'ascii-capable-number-pad';
-/**
- * Can be used for imperatively setting text on the TextField component.
+ * Can be used for imperatively focusing and setting text/selection on the `TextField` component.
  */
 export type TextFieldRef = {
     setText: (newText: string) => Promise<void>;
+    /** Clear the current text. */
+    clear: () => Promise<void>;
+    focus: () => Promise<void>;
+    blur: () => Promise<void>;
+    /**
+     * Programmatically set the selection range.
+     * @platform ios 18.0+ tvos 18.0+
+     */
+    setSelection: (start: number, end: number) => Promise<void>;
+};
+/**
+ * Selection range — `start` and `end` are character offsets into the field's text.
+ */
+export type TextFieldSelection = {
+    start: number;
+    end: number;
 };
 export type TextFieldProps = {
     ref?: Ref<TextFieldRef>;
     /**
-     * Initial value that the TextField displays when being mounted. As the TextField is an uncontrolled component, change the key prop if you need to change the text value.
+     * An observable state that holds the current text.
+     * Create one with `useNativeState('')` or `useNativeState('initial value')`.
+     * If omitted, the field manages its own internal state.
      */
-    defaultValue?: string;
+    text?: ObservableState<string>;
+    /**
+     * Observable state the field writes the current selection to.
+     * Create with `useNativeState<TextFieldSelection>({ start: 0, end: 0 })`.
+     * Use `ref.setSelection(start, end)` to set programmatically.
+     * @platform ios 18.0+ tvos 18.0+
+     */
+    selection?: ObservableState<TextFieldSelection>;
+    /** Maximum number of characters allowed. Truncates natively as the user types. */
+    maxLength?: number;
+    /** If true, the text field will be focused automatically when mounted. @default false */
+    autoFocus?: boolean;
     /**
      * A text that is displayed when the field is empty.
      */
     placeholder?: string;
     /**
-     * A callback triggered when user types in text into the TextField.
+     * A callback triggered when the text value changes.
+     *
+     * If the callback is marked with the `'worklet'` directive, it runs synchronously
+     * on the UI thread; otherwise it is delivered asynchronously as a regular JS event.
      */
-    onChangeText: (value: string) => void;
+    onTextChange?: (text: string) => void;
     /**
-     * If true, the text input can be multiple lines.
-     * While the content will wrap, there's no keyboard button to insert a new line.
+     * A callback triggered when the field gains or loses focus.
      */
-    multiline?: boolean;
-    allowNewlines?: boolean;
+    onFocusChange?: (focused: boolean) => void;
     /**
-     * The number of lines to display when `multiline` is set to true.
-     * If the number of lines in the view is above this number, the view scrolls.
-     * @default undefined, which means unlimited lines.
+     * A callback triggered when the text selection range changes.
+     * @platform ios 18.0+ tvos 18.0+
      */
-    numberOfLines?: number;
-    keyboardType?: TextFieldKeyboardType;
+    onSelectionChange?: (selection: {
+        start: number;
+        end: number;
+    }) => void;
     /**
-     * If true, autocorrection is enabled.
-     * @default true
+     * The axis along which the text field grows when content exceeds a single line.
+     * - `'horizontal'` — single line (default).
+     * - `'vertical'` — expands vertically for multiline content. Use `lineLimit` modifier to cap visible lines.
+     * @default 'horizontal'
      */
-    autocorrection?: boolean;
+    axis?: 'horizontal' | 'vertical';
+    /**
+     * Slot children — supports `<TextField.Placeholder>` with a `<Text>` child
+     * (any text-styling modifiers on that `Text` are preserved as the
+     * placeholder's styling).
+     */
+    children?: React.ReactNode;
 } & CommonViewModifierProps;
-export type NativeTextFieldProps = Omit<TextFieldProps, 'onChangeText'> & {} & ViewEvent<'onValueChanged', {
+export type NativeTextFieldProps = Omit<TextFieldProps, 'text' | 'selection' | 'onTextChange' | 'onFocusChange' | 'onSelectionChange'> & ViewEvent<'onTextChange', {
     value: string;
-}>;
+}> & ViewEvent<'onFocusChange', {
+    value: boolean;
+}> & ViewEvent<'onSelectionChange', {
+    start: number;
+    end: number;
+}> & {
+    text?: number | null;
+    selection?: number | null;
+    onTextChangeSync?: number | null;
+};
 /**
- * Renders a `TextField` component. Should mostly be used for embedding text inputs inside of SwiftUI lists and sections. Is an uncontrolled component.
+ * Renders a SwiftUI `TextField`.
  */
-export declare function TextField(props: TextFieldProps): import("react").JSX.Element;
+export declare function TextField(props: TextFieldProps): import("react/jsx-runtime").JSX.Element;
+export declare namespace TextField {
+    var Placeholder: ({ children }: {
+        children: React.ReactNode;
+    }) => import("react/jsx-runtime").JSX.Element;
+}
 //# sourceMappingURL=index.d.ts.map

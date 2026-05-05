@@ -17,7 +17,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
-import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.core.app.ActivityCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.os.bundleOf
@@ -132,7 +131,11 @@ class LocationModule : Module(), LifecycleEventListener, SensorEventListener, Ac
     AsyncFunction("requestForegroundPermissionsAsync") Coroutine { ->
       val permissionsManager = appContext.permissions ?: throw NoPermissionsModuleException()
 
-      LocationHelpers.askForPermissionsWithPermissionsManager(permissionsManager, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+      LocationHelpers.askForPermissionsWithPermissionsManager(
+        permissionsManager,
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+      )
       // We aren't using the values returned above, because we need to check if the user has provided fine location permissions
       return@Coroutine getForegroundPermissionsAsync()
     }
@@ -783,7 +786,6 @@ class LocationModule : Module(), LifecycleEventListener, SensorEventListener, Ac
    *
    * @see `https://medium.com/swlh/request-location-permission-correctly-in-android-11-61afe95a11ad`
    */
-  @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.Q)
   private fun shouldAskBackgroundPermissions(): Boolean {
     return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
   }

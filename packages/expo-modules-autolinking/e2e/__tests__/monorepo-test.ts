@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
-import { join } from 'path';
+import { join, resolve } from 'path';
 
 import { GitDirectory } from '../../../../tools/src/Git';
 import { autolinkingRunAsync, yarnSync, combinations } from '../TestUtils';
@@ -108,16 +108,22 @@ describe('monorepo', () => {
     });
   });
 
-  describe('generate-package-list / generate-modules-provider', () => {
+  describe('generate-modules-provider', () => {
     test.each(testCases)('%s', async ({ app, platform }) => {
-      const command =
-        platform === 'android' ? 'generate-package-list' : 'generate-modules-provider';
+      if (platform === 'android') return;
       const appPath = projectPath(app);
       const target = join(appPath, 'generated', 'file.txt');
-      const platformExtraArgs = platform === 'android' ? ['--namespace', 'com.test'] : [];
-
+      const podfilePropertiesFilePath = resolve(appPath, 'ios/Podfile.properties.json');
       const generatePackageListResult = await autolinkingRunAsync(
-        [command, '--platform', platform, '--target', target, ...platformExtraArgs],
+        [
+          'generate-modules-provider',
+          '--podfile-properties-file-path',
+          podfilePropertiesFilePath,
+          '--platform',
+          platform,
+          '--target',
+          target,
+        ],
         {
           cwd: appPath,
         }

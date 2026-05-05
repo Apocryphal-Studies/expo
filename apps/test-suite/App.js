@@ -1,24 +1,32 @@
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
 import * as Linking from 'expo-linking';
 import * as React from 'react';
 
-import AppNavigator from './AppNavigator';
-import { ThemeProvider } from '../common/ThemeProvider';
+import { TestStackNavigator } from './TestStackNavigator';
+import { ThemeProvider, useTheme } from '../common/ThemeProvider';
+import { routeNames } from './constants/routeNames';
 
 const linking = {
   prefixes: [Linking.createURL('/')],
   config: {
     screens: {
-      select: '',
-      run: 'run',
+      [routeNames.select]: '',
+      [routeNames.run]: routeNames.run,
     },
   },
 };
 
+function AppContent() {
+  const { name: themeName } = useTheme();
+  return (
+    <NavigationContainer linking={linking} theme={themeName === 'dark' ? DarkTheme : DefaultTheme}>
+      <TestStackNavigator />
+    </NavigationContainer>
+  );
+}
+
 export default () => (
   <ThemeProvider>
-    <NavigationContainer linking={linking}>
-      <AppNavigator />
-    </NavigationContainer>
+    <AppContent />
   </ThemeProvider>
 );

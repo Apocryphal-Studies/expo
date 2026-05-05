@@ -1,20 +1,26 @@
 import { getConfig } from '@expo/config';
 import chalk from 'chalk';
 
+import { getLogFile, shouldReduceLogs } from '../events';
 import { SimulatorAppPrerequisite } from './doctor/apple/SimulatorAppPrerequisite';
 import { getXcodeVersionAsync } from './doctor/apple/XcodePrerequisite';
 import { validateDependenciesVersionsAsync } from './doctor/dependencies/validateDependenciesVersions';
 import { WebSupportProjectPrerequisite } from './doctor/web/WebSupportProjectPrerequisite';
 import { startInterfaceAsync } from './interface/startInterface';
-import { Options, resolvePortsAsync } from './resolveOptions';
+import type { Options } from './resolveOptions';
+import { resolvePortsAsync } from './resolveOptions';
 import * as Log from '../log';
-import { BundlerStartOptions } from './server/BundlerDevServer';
-import { DevServerManager, MultiBundlerStartOptions } from './server/DevServerManager';
+import type { BundlerStartOptions } from './server/BundlerDevServer';
+import type { MultiBundlerStartOptions } from './server/DevServerManager';
+import { DevServerManager } from './server/DevServerManager';
 import { openPlatformsAsync } from './server/openPlatforms';
-import { getPlatformBundlers, PlatformBundlers } from './server/platformBundlers';
+import type { PlatformBundlers } from './server/platformBundlers';
+import { getPlatformBundlers } from './server/platformBundlers';
 import { env } from '../utils/env';
 import { isInteractive } from '../utils/interactive';
 import { profile } from '../utils/profile';
+import { maybeCreateMCPServerAsync } from './server/MCP';
+import { addMcpCapabilities } from './server/MCPDevToolsPluginCLIExtensions';
 
 async function getMultiBundlerStartOptions(
   projectRoot: string,
@@ -65,7 +71,13 @@ export async function startAsync(
   options: Options,
   settings: { webOnly?: boolean }
 ) {
-  Log.log(chalk.gray(`Starting project at ${projectRoot}`));
+  if (!shouldReduceLogs()) {
+    Log.log(chalk.gray(`Starting project at ${projectRoot}`));
+    const logFile = getLogFile();
+    if (!isInteractive() && logFile) {
+      Log.log(chalk.gray(`Logs: ${logFile}`));
+    }
+  }
 
   const { exp, pkg } = profile(getConfig)(projectRoot);
 
@@ -106,27 +118,44 @@ export async function startAsync(
   }
 
   if (!env.EXPO_NO_DEPENDENCY_VALIDATION && !settings.webOnly && !options.devClient) {
-    await profile(validateDependenciesVersionsAsync)(projectRoot, exp, pkg);
+    try {
+      await profile(validateDependenciesVersionsAsync)(projectRoot, exp, pkg);
+    } catch {
+      // We don't show the dependency validation error, since it's non-essential
+      // for the user to know it ran or failed
+    }
   }
 
   // Open project on devices.
   await profile(openPlatformsAsync)(devServerManager, options);
 
+  const defaultServerUrl = devServerManager.getDefaultDevServer()?.getDevServerUrl() ?? '';
+  const mcpServer =
+    (await profile(maybeCreateMCPServerAsync)({
+      projectRoot,
+      devServerUrl: defaultServerUrl,
+    })) ?? undefined;
+
   // Present the Terminal UI.
   if (isInteractive()) {
     await profile(startInterfaceAsync)(devServerManager, {
       platforms: exp.platforms ?? ['ios', 'android', 'web'],
+      mcpServer,
     });
   } else {
     // Display the server location in CI...
-    const url = devServerManager.getDefaultDevServer()?.getDevServerUrl();
-    if (url) {
+    if (defaultServerUrl) {
       if (env.__EXPO_E2E_TEST) {
         // Print the URL to stdout for tests
-        console.info(`[__EXPO_E2E_TEST:server] ${JSON.stringify({ url })}`);
+        console.info(`[__EXPO_E2E_TEST:server] ${JSON.stringify({ url: defaultServerUrl })}`);
       }
-      Log.log(chalk`Waiting on {underline ${url}}`);
+      Log.log(chalk`Waiting on {underline ${defaultServerUrl}}`);
     }
+  }
+
+  if (mcpServer) {
+    addMcpCapabilities(mcpServer, devServerManager);
+    mcpServer.start();
   }
 
   // Final note about closing the server.

@@ -2,7 +2,8 @@ import { isRunningInExpoGo } from 'expo';
 import { Platform, UnavailabilityError } from 'expo-modules-core';
 import * as TaskManager from 'expo-task-manager';
 
-import { BackgroundTaskOptions, BackgroundTaskStatus } from './BackgroundTask.types';
+import type { BackgroundTaskOptions } from './BackgroundTask.types';
+import { BackgroundTaskStatus } from './BackgroundTask.types';
 import ExpoBackgroundTaskModule from './ExpoBackgroundTaskModule';
 
 // Flag to warn about running on Apple simulator
@@ -138,9 +139,25 @@ export async function triggerTaskWorkerForTestingAsync(): Promise<boolean> {
   }
 }
 
+// @needsAudit
+/**
+ * Adds a listener that is called when the background executor expires. On iOS, tasks can run
+ * for minutes, but the system can interrupt the process at any time. This listener is called
+ * when the system decides to stop the background tasks and should be used to clean up resources
+ * or save state. When the expiry handler is called, the main task runner is rescheduled automatically.
+ * @platform ios
+ * @return An object with a `remove` method to unsubscribe the listener.
+ */
+export function addExpirationListener(listener: () => void): { remove: () => void } {
+  if (!ExpoBackgroundTaskModule.addListener) {
+    throw new UnavailabilityError('BackgroundTask', 'addListener');
+  }
+  return ExpoBackgroundTaskModule.addListener('onTasksExpired', listener);
+}
+
 // Export types
 export {
   BackgroundTaskStatus,
   BackgroundTaskResult,
-  BackgroundTaskOptions,
+  type BackgroundTaskOptions,
 } from './BackgroundTask.types';

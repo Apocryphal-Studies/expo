@@ -4,11 +4,77 @@
 
 ### 🛠 Breaking changes
 
+- Bumped minimum iOS/tvOS version to 16.4, macOS to 13.4. ([#43296](https://github.com/expo/expo/pull/43296) by [@tsapeta](https://github.com/tsapeta))
+
 ### 🎉 New features
+
+- Expose a typed config plugin function ([#44098](https://github.com/expo/expo/pull/44098) by [@zoontek](https://github.com/zoontek))
 
 ### 🐛 Bug fixes
 
+- [iOS] Fixed background task execution failing with "Could not find TaskService module" due to broken `ModuleRegistryProvider.singletonModules()` lookup after `EXTaskService` was migrated from `EXSingletonModule` to `NSObject`. ([#44646](https://github.com/expo/expo/pull/44646) by [@xTMNTxRaphaelx](https://github.com/xTMNTxRaphaelx))
+- [Android] Preserve WorkManager cancellation semantics when a background task worker is cancelled. ([#44667](https://github.com/expo/expo/pull/44667) by [@chrfalch](https://github.com/chrfalch))- [Android] Prevent background task registration from replacing an already scheduled or running worker. ([#44663](https://github.com/expo/expo/pull/44663) by [@chrfalch](https://github.com/chrfalch))
+- [iOS] Fixed a race when rescheduling background tasks concurrently. ([#44666](https://github.com/expo/expo/pull/44666) by [@chrfalch](https://github.com/chrfalch))
+
 ### 💡 Others
+
+## 55.0.8 — 2026-02-25
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.7 — 2026-02-20
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.6 — 2026-02-16
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.5 — 2026-02-08
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.4 — 2026-02-03
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.3 — 2026-01-27
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.2 — 2026-01-26
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.1 — 2026-01-22
+
+_This version does not introduce any user-facing changes._
+
+## 55.0.0 — 2026-01-21
+
+_This version does not introduce any user-facing changes._
+
+## 1.0.10 - 2025-12-05
+
+_This version does not introduce any user-facing changes._
+
+## 1.0.9 - 2025-11-17
+
+_This version does not introduce any user-facing changes._
+
+## 1.0.8 - 2025-09-18
+
+### 🎉 New features
+
+- [iOS] Added support for task expiration handler on iOS. ([#39773](https://github.com/expo/expo/pull/39773) by [@chrfalch](https://github.com/chrfalch))
+
+### 🐛 Bug fixes
+
+- [iOS] Fixed timing issue where background task iOS handler was not registered when we try to schedule a task. ([#39769](https://github.com/expo/expo/pull/39769) by [@chrfalch](https://github.com/chrfalch))
+
+## 1.0.7 — 2025-09-11
+
+_This version does not introduce any user-facing changes._
 
 ## 1.0.6 — 2025-09-02
 

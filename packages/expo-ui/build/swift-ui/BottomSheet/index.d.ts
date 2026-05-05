@@ -2,16 +2,29 @@ import { type CommonViewModifierProps } from '../types';
 export type BottomSheetProps = {
     /**
      * The children of the `BottomSheet` component.
+     * Use `Group` to wrap your content and apply presentation modifiers
+     * like `presentationDetents`, `presentationDragIndicator`,
+     * `presentationBackgroundInteraction`, and `interactiveDismissDisabled`.
      */
-    children: any;
+    children: React.ReactNode;
     /**
-     * Whether the `BottomSheet` is opened.
+     * Whether the `BottomSheet` is presented.
      */
-    isOpened: boolean;
+    isPresented: boolean;
     /**
-     * Callback function that is called when the `BottomSheet` is opened.
+     * Callback function that is called when the `BottomSheet` presented state changes.
      */
-    onIsOpenedChange: (isOpened: boolean) => void;
+    onIsPresentedChange: (isPresented: boolean) => void;
+    /**
+     * When `true`, the sheet will automatically size itself to fit its content.
+     * This sets the presentation detent to match the height of the children.
+     * @default false
+     */
+    fitToContents?: boolean;
 } & CommonViewModifierProps;
-export declare function BottomSheet(props: BottomSheetProps): import("react").JSX.Element;
+/**
+ * `BottomSheet` presents content from the bottom of the screen.
+ */
+declare function BottomSheet(props: BottomSheetProps): import("react/jsx-runtime").JSX.Element;
+export { BottomSheet };
 //# sourceMappingURL=index.d.ts.map

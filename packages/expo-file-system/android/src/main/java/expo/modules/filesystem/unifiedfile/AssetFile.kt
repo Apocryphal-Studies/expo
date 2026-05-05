@@ -4,7 +4,10 @@ import android.content.Context
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.core.net.toUri
+import expo.modules.filesystem.fsops.CopyMoveStrategy
+import expo.modules.kotlin.AppContext
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -25,6 +28,21 @@ class AssetFile(private val context: Context, override val uri: Uri) : UnifiedFi
     }
   }
 
+  // Cache the content URI to avoid redundant file writes – assets are read-only
+  var contentUri: Uri? = null
+  override fun getContentUri(appContext: AppContext): Uri {
+    inputStream().use { inputStream ->
+      val outputFile = File(context.cacheDir, "expo_shared_assets/$fileName")
+      outputFile.parentFile?.mkdirs() // Create directories if needed
+      FileOutputStream(outputFile).use { outputStream ->
+        inputStream.copyTo(outputStream)
+      }
+      val newContentUri = JavaFile(outputFile.toUri()).getContentUri(appContext)
+      contentUri = newContentUri
+      return newContentUri
+    }
+  }
+
   override val parentFile: UnifiedFileInterface?
     get() {
       val currentPath = uri.path.orEmpty()
@@ -33,7 +51,7 @@ class AssetFile(private val context: Context, override val uri: Uri) : UnifiedFi
       }
 
       val parentPath = currentPath.substringBeforeLast('/')
-      val parentUri = "asset://$parentPath".toUri()
+      val parentUri = "asset:///$parentPath".toUri()
 
       return AssetFile(context, parentUri)
     }
@@ -48,9 +66,14 @@ class AssetFile(private val context: Context, override val uri: Uri) : UnifiedFi
 
   override fun delete(): Boolean = throw UnsupportedOperationException("Asset files are not writable and cannot be deleted")
 
+  override fun deleteRecursively(): Boolean = throw UnsupportedOperationException("Asset files are not writable and cannot be deleted")
+
   override fun listFilesAsUnified(): List<UnifiedFileInterface> {
     val list = context.assets.list(path)
-    return list?.map { name -> AssetFile(context, File(path, name).toUri()) as UnifiedFileInterface } ?: emptyList()
+    return list?.map { name ->
+      val childPath = if (path.isEmpty()) name else "$path/$name"
+      AssetFile(context, "asset:///$childPath".toUri()) as UnifiedFileInterface
+    } ?: emptyList()
   }
 
   override val type: String?
@@ -76,7 +99,7 @@ class AssetFile(private val context: Context, override val uri: Uri) : UnifiedFi
     return null
   }
 
-  override fun outputStream(): OutputStream {
+  override fun outputStream(append: Boolean): OutputStream {
     throw UnsupportedOperationException("Asset files are not writable")
   }
 
@@ -112,10 +135,12 @@ class AssetFile(private val context: Context, override val uri: Uri) : UnifiedFi
     if (isDirectory()) {
       val assets = context.assets.list(path)
       assets?.forEach { assetName ->
-        val childUri = "$uri/$assetName".replace("//", "/").toUri()
-        val childFile = AssetFile(context, childUri)
+        val childPath = if (path.isEmpty()) assetName else "$path/$assetName"
+        val childFile = AssetFile(context, "asset:///$childPath".toUri())
         yieldAll(childFile.walkTopDown())
       }
     }
   }
+
+  override val copyMoveStrategy: CopyMoveStrategy = CopyMoveStrategy.Asset(this)
 }

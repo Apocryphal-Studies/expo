@@ -1,5 +1,5 @@
-import { ColorValue, StyleProp, ViewStyle } from 'react-native';
-import { CommonViewModifierProps } from '../types';
+import type { ColorValue, StyleProp, ViewStyle } from 'react-native';
+import type { CommonViewModifierProps } from '../types';
 /**
  * The type of chart to display.
  * - `line` charts show continuous lines with optional dash array, width, point symbols, and color.
@@ -7,23 +7,22 @@ import { CommonViewModifierProps } from '../types';
  * - `bar` charts show vertical bars using system colors or individual ChartDataPoint colors, with optional corner radius and width styling.
  * - `area` charts show filled areas under lines with color.
  * - `pie` charts show pie slices with optional inner radius and angular inset. Pie charts require iOS 17.0+.
+ * - `rectangle` charts show rectangular data visualization.
  * @platform ios
  */
-export type ChartType = 'line' | 'point' | 'bar' | 'area' | 'pie';
+export type ChartType = 'line' | 'point' | 'bar' | 'area' | 'pie' | 'rectangle';
 /**
  * Point symbol style options.
- * @platform ios
  */
 export type PointStyle = 'circle' | 'square' | 'diamond';
 /**
  * Data point for the chart.
- * @platform ios
  */
 export type ChartDataPoint = {
     /**
-     * X-axis value (label).
+     * X-axis value (can be a label string or numeric value).
      */
-    x: string;
+    x: string | number;
     /**
      * Y-axis value (numeric).
      */
@@ -107,6 +106,30 @@ export type PointChartStyle = {
      */
     pointSize?: number;
 };
+export type RectangleChartStyle = {
+    /**
+     * Color of the rectangle.
+     */
+    color?: ColorValue;
+    /**
+     * Corner radius of the rectangle.
+     */
+    cornerRadius?: number;
+};
+export type RuleChartStyle = {
+    /**
+     * Color of the rule line.
+     */
+    color?: ColorValue;
+    /**
+     * Line width of the rule.
+     */
+    lineWidth?: number;
+    /**
+     * Dash pattern array for the rule line.
+     */
+    dashArray?: number[];
+};
 export type ChartProps = {
     /**
      * Array of data points to display.
@@ -133,6 +156,10 @@ export type ChartProps = {
      */
     showLegend?: boolean;
     /**
+     * Optional reference lines to overlay on the chart as rule marks.
+     */
+    referenceLines?: ChartDataPoint[];
+    /**
      * Line chart specific styling options.
      */
     lineStyle?: LineChartStyle;
@@ -152,12 +179,21 @@ export type ChartProps = {
      * Pie chart specific styling options.
      */
     pieStyle?: PieChartStyle;
+    /**
+     * Rectangle chart specific styling options.
+     */
+    rectangleStyle?: RectangleChartStyle;
+    /**
+     * Rule mark specific styling options.
+     */
+    ruleStyle?: RuleChartStyle;
 } & CommonViewModifierProps;
 /**
  * Renders a native Chart component using Swift Charts.
- * @platform ios
+ * @platform ios 16.0+
+ * @platform tvos 16.0+
  */
-export declare function Chart({ style, data, modifiers, ...props }: ChartProps & {
+export declare function Chart({ style, data, modifiers, referenceLines, ...props }: ChartProps & {
     style?: StyleProp<ViewStyle>;
-}): import("react").JSX.Element;
+}): import("react/jsx-runtime").JSX.Element;
 //# sourceMappingURL=index.d.ts.map

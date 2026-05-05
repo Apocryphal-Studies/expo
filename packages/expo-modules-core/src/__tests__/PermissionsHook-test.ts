@@ -1,7 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 
 import { createPermissionHook } from '../PermissionsHook';
-import { PermissionResponse, PermissionStatus } from '../PermissionsInterface';
+import type { PermissionResponse } from '../PermissionsInterface';
+import { PermissionStatus } from '../PermissionsInterface';
 
 // The indexes of the array returned by the hooks
 const RESULT_STATUS = 0;
@@ -173,7 +174,7 @@ describe('product', () => {
       );
 
       await waitFor(() => {
-        expect(getMethod).toHaveBeenCalledWith(undefined);
+        expect(getMethod).toHaveBeenCalledWith();
       });
     });
 
@@ -181,7 +182,7 @@ describe('product', () => {
       const getMethod = jest.fn(async () => permissionGranted);
 
       renderHook(
-        createPermissionHook({
+        createPermissionHook<PermissionResponse, { setting: string }>({
           getMethod,
           requestMethod: async () => permissionDenied,
         }),
@@ -255,7 +256,7 @@ describe('product', () => {
       );
 
       await waitFor(() => {
-        expect(requestMethod).toHaveBeenCalledWith(undefined);
+        expect(requestMethod).toHaveBeenCalledWith();
       });
     });
 
@@ -263,7 +264,7 @@ describe('product', () => {
       const requestMethod = jest.fn(async () => permissionGranted);
 
       renderHook(
-        createPermissionHook({
+        createPermissionHook<PermissionResponse, { setting: string }>({
           requestMethod,
           getMethod: async () => permissionDenied,
         }),

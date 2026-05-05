@@ -1,5 +1,5 @@
 import { act, screen } from '@testing-library/react-native';
-import React, { Text } from 'react-native';
+import { Text } from 'react-native';
 
 import { Slot, router, useGlobalSearchParams, usePathname } from '../exports';
 import { Drawer } from '../layouts/Drawer';
@@ -194,8 +194,8 @@ it('nested layouts', async () => {
   expect(await screen.findByText('HomeNested')).toBeOnTheScreen();
 
   expect(AppLayout).toHaveBeenCalledTimes(1);
-  expect(TabsLayout).toHaveBeenCalledTimes(2);
-  expect(StackLayout).toHaveBeenCalledTimes(2);
+  expect(TabsLayout).toHaveBeenCalledTimes(1);
+  expect(StackLayout).toHaveBeenCalledTimes(1);
   expect(Index).toHaveBeenCalledTimes(1);
   expect(Home).toHaveBeenCalledTimes(1);
   expect(HomeNested).toHaveBeenCalledTimes(1);

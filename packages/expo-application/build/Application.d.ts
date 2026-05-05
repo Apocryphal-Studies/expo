@@ -1,4 +1,4 @@
-import { ApplicationReleaseType, PushNotificationServiceEnvironment } from './Application.types';
+import type { ApplicationReleaseType, PushNotificationServiceEnvironment } from './Application.types';
 /**
  * The human-readable version of the native application that may be displayed in the app store.
  * At time when native app is built, on Android, this is the version name set by `version`
@@ -44,7 +44,10 @@ export declare const applicationId: string | null;
  * > for the lifetime of the user's device. See the [ANDROID_ID](https://developer.android.com/reference/android/provider/Settings.Secure.html#ANDROID_ID)
  * > official docs for more information.
  * @example
- * `"dd96dec43fb81c97"`
+ * ```ts
+ * Application.getAndroidId();
+ * // "dd96dec43fb81c97"
+ * ```
  * @platform android
  */
 export declare function getAndroidId(): string;
@@ -127,5 +130,5 @@ export declare function getInstallationTimeAsync(): Promise<Date>;
  * @platform android
  */
 export declare function getLastUpdateTimeAsync(): Promise<Date>;
-export { ApplicationReleaseType, PushNotificationServiceEnvironment };
+export { ApplicationReleaseType, type PushNotificationServiceEnvironment, } from './Application.types';
 //# sourceMappingURL=Application.d.ts.map

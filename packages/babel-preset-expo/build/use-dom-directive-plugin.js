@@ -108,7 +108,8 @@ function expoUseDomDirectivePlugin(api) {
                 // Find and register the component declaration
                 results.forEach((nodePath) => {
                     if (t.isVariableDeclaration(nodePath.node) &&
-                        'name' in nodePath.node.declarations[0]?.id &&
+                        nodePath.node.declarations[0]?.id != null &&
+                        'name' in nodePath.node.declarations[0].id &&
                         nodePath.node.declarations[0].id.name === '_Expo_DOMProxyComponent') {
                         path.scope.registerDeclaration(nodePath);
                     }
@@ -126,3 +127,4 @@ function assertExpoMetadata(metadata) {
     }
     throw new Error('Expected Babel state.file.metadata to be an object');
 }
+//# sourceMappingURL=use-dom-directive-plugin.js.map

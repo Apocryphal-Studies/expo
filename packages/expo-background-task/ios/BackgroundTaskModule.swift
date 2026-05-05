@@ -1,14 +1,28 @@
 // Copyright 2024-present 650 Industries. All rights reserved.
 import ExpoModulesCore
 
+private let onTasksExpired = "onTasksExpired"
+public let onTasksExpiredNotification = Notification.Name(onTasksExpired)
+
 public class BackgroundTaskModule: Module {
-  private var taskManager: EXTaskManagerInterface?
+  private lazy var taskManager: EXTaskManagerInterface? = appContext?.legacyModule(implementing: EXTaskManagerInterface.self)
 
   public func definition() -> ModuleDefinition {
     Name("ExpoBackgroundTask")
 
-    OnCreate {
-      taskManager = appContext?.legacyModule(implementing: EXTaskManagerInterface.self)
+    Events(onTasksExpired)
+
+    OnStartObserving(onTasksExpired) {
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(handleTasksExpiredNotification),
+        name: onTasksExpiredNotification,
+        object: nil)
+    }
+
+    OnStopObserving(onTasksExpired) {
+      // swiftlint:disable:next notification_center_detachment
+      NotificationCenter.default.removeObserver(self)
     }
 
     AsyncFunction("triggerTaskWorkerForTestingAsync") {
@@ -29,7 +43,8 @@ public class BackgroundTaskModule: Module {
       }
 
       // Register task
-      taskManager.registerTask(withName: name, consumer: BackgroundTaskConsumer.self, options: options)
+      taskManager.registerTask(
+        withName: name, consumer: BackgroundTaskConsumer.self, options: options)
     }
 
     AsyncFunction("unregisterTaskAsync") { (name: String) in
@@ -51,8 +66,15 @@ public class BackgroundTaskModule: Module {
     }
 
     AsyncFunction("getStatusAsync") {
-      return BackgroundTaskScheduler.supportsBackgroundTasks() ?
-        BackgroundTaskStatus.available : .restricted
+      return BackgroundTaskScheduler.supportsBackgroundTasks()
+        ? BackgroundTaskStatus.available : .restricted
     }
+  }
+
+  @objc func handleTasksExpiredNotification(_ notification: Notification) {
+    guard let url = notification.userInfo?["url"] as? URL else {
+      return
+    }
+    self.sendEvent(onTasksExpired, [:])
   }
 }

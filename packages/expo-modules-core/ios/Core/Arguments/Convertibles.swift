@@ -37,6 +37,13 @@ extension URL: Convertible {
     // If it still fails to create the URL object, the string possibly contains characters that must be explicitly percent-encoded beforehand.
     throw UrlContainsInvalidCharactersException()
   }
+
+  public static func convertResult(_ result: Any, appContext: AppContext) throws -> Any {
+    if let url = result as? URL {
+      return url.absoluteString
+    }
+    return result
+  }
 }
 
 internal class UrlContainsInvalidCharactersException: Exception {
@@ -58,6 +65,13 @@ extension CGPoint: Convertible {
     }
     throw Conversions.ConvertingException<CGPoint>(value)
   }
+
+  public static func convertResult(_ result: Any, appContext: AppContext) throws -> Any {
+    if let value = result as? CGPoint {
+      return ["x": value.x, "y": value.y]
+    }
+    return result
+  }
 }
 
 extension CGSize: Convertible {
@@ -73,6 +87,13 @@ extension CGSize: Convertible {
       return size
     }
     throw Conversions.ConvertingException<CGSize>(value)
+  }
+
+  public static func convertResult(_ result: Any, appContext: AppContext) throws -> Any {
+    if let value = result as? CGSize {
+      return ["width": value.width, "height": value.height]
+    }
+    return result
   }
 }
 
@@ -90,6 +111,13 @@ extension CGVector: Convertible {
     }
     throw Conversions.ConvertingException<CGVector>(value)
   }
+
+  public static func convertResult(_ result: Any, appContext: AppContext) throws -> Any {
+    if let value = result as? CGVector {
+      return ["dx": value.dx, "dy": value.dy]
+    }
+    return result
+  }
 }
 
 extension CGRect: Convertible {
@@ -105,6 +133,13 @@ extension CGRect: Convertible {
       return rect
     }
     throw Conversions.ConvertingException<CGRect>(value)
+  }
+
+  public static func convertResult(_ result: Any, appContext: AppContext) throws -> Any {
+    if let value = result as? CGRect {
+      return ["x": value.minX, "y": value.minY, "width": value.width, "height": value.height]
+    }
+    return result
   }
 }
 

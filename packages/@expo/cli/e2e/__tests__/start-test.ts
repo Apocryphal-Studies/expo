@@ -90,11 +90,16 @@ for (const args of [
   });
 }
 
-describe('server', () => {
+// Due to change in `expo` package the tests suit will fail on Windows, as npm pack fails to execute `expo` prepare on Windows.
+const describeSkipWin = process.platform === 'win32' ? describe.skip : describe;
+
+describeSkipWin('server', () => {
   const expo = createExpoStart();
 
   beforeEach(async () => {
-    expo.options.cwd = await setupTestProjectWithOptionsAsync('basic-start', 'with-blank');
+    expo.options.cwd = await setupTestProjectWithOptionsAsync('basic-start', 'with-blank', {
+      linkExpoPackages: ['expo', 'babel-preset-expo'],
+    });
     await fs.promises.rm(path.join(projectRoot, '.expo'), { force: true, recursive: true });
     await expo.startAsync();
   });
@@ -117,18 +122,17 @@ describe('server', () => {
     // URLs
     expect(manifest.launchAsset.url).toBe(
       new URL(
-        '/node_modules/expo/AppEntry.bundle?platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable',
+        '/index.bundle?platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable',
         expo.url
       ).href
     );
 
     expect(manifest.extra.expoGo?.debuggerHost).toBe(expo.url.host);
-    expect(manifest.extra.expoGo?.mainModuleName).toMatchPath('node_modules/expo/AppEntry');
     expect(manifest.extra.expoClient?.hostUri).toBe(expo.url.host);
 
     // Manifest
     expect(manifest.runtimeVersion).toBe('1.0');
-    expect(manifest.extra.expoClient?.sdkVersion).toBe('52.0.0');
+    expect(manifest.extra.expoClient?.sdkVersion).toBe('55.0.0');
     expect(manifest.extra.expoClient?.slug).toBe('basic-start');
     expect(manifest.extra.expoClient?.name).toBe('basic-start');
 
@@ -146,7 +150,15 @@ describe('server', () => {
       version: 3,
       sources: expect.arrayContaining([
         '__prelude__',
-        expect.pathMatching(/metro-runtime\/src\/polyfills\/require\.js$/),
+        // NOTE(@kitten): We can slot in our own runtime here
+        expect.pathMatching(
+          new RegExp(
+            [
+              '/metro-runtime/src/polyfills/require.js',
+              '/@expo/cli/build/metro-require/require.js',
+            ].join('|')
+          )
+        ),
         expect.pathMatching(/@react-native\/js-polyfills\/console\.js$/),
         expect.pathMatching(/@react-native\/js-polyfills\/error-guard\.js$/),
         '\0polyfill:external-require',
@@ -196,30 +208,58 @@ describe('start - dev clients', () => {
   });
 });
 
-describe('start - webcontainer', () => {
-  const expo = createExpoStart({
-    cwd: getRouterE2ERoot(),
-    port: 8081, // Only port 8081 is supported with the ws-tunnel
-    env: {
-      NODE_ENV: 'development',
-      EXPO_USE_STATIC: 'server',
-      E2E_ROUTER_SRC: 'server',
-      E2E_ROUTER_ASYNC: 'development',
-      // Force webcontainer mode
-      CI: 'false',
-      EXPO_FORCE_WEBCONTAINER_ENV: 'true',
-    },
+describeSkipWin('web-only (no react-native)', () => {
+  let webOnlyRoot: string;
+
+  beforeAll(async () => {
+    webOnlyRoot = await setupTestProjectWithOptionsAsync('web-only-start', 'with-web-only', {
+      linkExpoPackages: ['expo', 'babel-preset-expo'],
+    });
   });
 
-  beforeEach(async () => {
-    await expo.startAsync();
-  });
-  afterAll(async () => {
-    await expo.stopAsync();
+  it('runs `npx expo config --json` without react-native', async () => {
+    const results = await executeExpoAsync(webOnlyRoot, ['config', '--json'], {
+      env: {
+        ...process.env,
+        NODE_PATH: '',
+      },
+    });
+    const exp = JSON.parse(results.stdout);
+    expect(exp.platforms).toStrictEqual(['web']);
   });
 
-  it('starts with ws-tunnel enabled by default', () => {
-    // Ensure dev server URL points to the ws tunnel by default
-    expect(expo.url.href).toContain('.boltexpo.dev:');
+  it('runs `npx expo export --platform web` without react-native', async () => {
+    await executeExpoAsync(webOnlyRoot, ['export', '--platform', 'web'], {
+      env: {
+        NODE_ENV: 'production',
+        TEST_BABEL_PRESET_EXPO_MODULE_ID: require.resolve('babel-preset-expo'),
+      },
+    });
+
+    const outputDir = path.join(webOnlyRoot, 'dist');
+    expect(fs.existsSync(outputDir)).toBe(true);
+
+    const indexHtml = path.join(outputDir, 'index.html');
+    expect(fs.existsSync(indexHtml)).toBe(true);
+  });
+
+  describe('server', () => {
+    const expo = createExpoStart();
+
+    beforeEach(async () => {
+      expo.options.cwd = webOnlyRoot;
+      await expo.startAsync(['--web']);
+    });
+
+    afterAll(async () => {
+      await expo.stopAsync();
+    });
+
+    it('starts and serves web bundle without react-native', async () => {
+      const response = await expo.fetchBundleAsync('/index.bundle?platform=web&dev=true');
+      expect(response.ok).toBeTruthy();
+      const content = await response.text();
+      expect(content.length).toBeGreaterThan(100);
+    });
   });
 });

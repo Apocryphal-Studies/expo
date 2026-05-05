@@ -5,11 +5,11 @@ import {
   ROUTER_DISMISS_ALL_TYPE,
   ROUTER_LINK_TYPE,
 } from './events';
-import { LinkToOptions } from '../global-state/routing';
+import type { LinkToOptions } from '../global-state/routing';
 
 function emitDomEvent(type: string, data: any = {}) {
   // @ts-expect-error: ReactNativeWebView is a global variable injected by the WebView
-  if (typeof ReactNativeWebView !== 'undefined') {
+  if (typeof $$EXPO_INITIAL_PROPS !== 'undefined' && typeof ReactNativeWebView !== 'undefined') {
     (window as any).ReactNativeWebView.postMessage(JSON.stringify({ type, data }));
     return true;
   }

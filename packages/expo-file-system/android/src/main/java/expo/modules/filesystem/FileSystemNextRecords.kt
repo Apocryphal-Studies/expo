@@ -2,12 +2,16 @@ package expo.modules.filesystem
 
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
+import expo.modules.kotlin.types.Enumerable
+import expo.modules.kotlin.types.OptimizedRecord
 
+@OptimizedRecord
 data class InfoOptions(
   @Field
   val md5: Boolean?
 ) : Record
 
+@OptimizedRecord
 data class CreateOptions(
   @Field
   val intermediates: Boolean = false,
@@ -17,11 +21,34 @@ data class CreateOptions(
   val idempotent: Boolean = false
 ) : Record
 
-data class DownloadOptions(
+enum class EncodingType(val value: String) : Enumerable {
+  UTF8("utf8"),
+  BASE64("base64")
+}
+
+@OptimizedRecord
+data class WriteOptions(
   @Field
-  val headers: Map<String, String> = emptyMap()
+  val encoding: EncodingType = EncodingType.UTF8,
+  @Field
+  val append: Boolean = false
 ) : Record
 
+@OptimizedRecord
+data class DownloadOptions(
+  @Field
+  val headers: Map<String, String> = emptyMap(),
+  @Field
+  val idempotent: Boolean = false
+) : Record
+
+@OptimizedRecord
+data class RelocationOptions(
+  @Field
+  val overwrite: Boolean = false
+) : Record
+
+@OptimizedRecord
 data class FileInfo(
   @Field var exists: Boolean,
   @Field var uri: String?,
@@ -31,11 +58,13 @@ data class FileInfo(
   @Field var creationTime: Long? = null
 ) : Record
 
+@OptimizedRecord
 data class PathInfo(
   @Field var exists: Boolean,
   @Field var isDirectory: Boolean?
 ) : Record
 
+@OptimizedRecord
 data class DirectoryInfo(
   @Field var exists: Boolean,
   @Field var uri: String?,

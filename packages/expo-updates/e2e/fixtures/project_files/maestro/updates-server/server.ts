@@ -100,11 +100,18 @@ function consumeRequestedStaticFiles() {
   return returnArray;
 }
 
-app.use(express.json());
-app.use('/static', (req: { url: string }, res: any, next: () => void) => {
-  requestedStaticFiles.push(path.basename(req.url));
-  next();
-});
+app.use(express.json({ limit: '200kb' }));
+app.use(
+  '/static',
+  (
+    req: { url: string; headers: Record<string, string | undefined> },
+    res: any,
+    next: () => void
+  ) => {
+    requestedStaticFiles.push(path.basename(req.url));
+    next();
+  }
+);
 app.use('/static', express.static(path.resolve(__dirname, '..', '.static')));
 
 app.get(
@@ -366,10 +373,10 @@ app.get('/install-client', async (req: Request, res: Response) => {
 });
 
 async function uninstallClient(platform: string) {
-  console.log(`yarn maestro:${platform}:uninstall`);
+  console.log(`pnpm maestro:${platform}:uninstall`);
   // If app not present, this will fail but that's OK
   try {
-    await spawnAsync('yarn', [`maestro:${platform}:uninstall`], {
+    await spawnAsync('pnpm', [`maestro:${platform}:uninstall`], {
       cwd: projectRoot,
     });
   } catch (e) {
@@ -378,8 +385,8 @@ async function uninstallClient(platform: string) {
 }
 
 async function installClient(platform: string, configuration: string) {
-  console.log(`yarn maestro:${platform}:${configuration}:install`);
-  await spawnAsync('yarn', [`maestro:${platform}:${configuration}:install`], {
+  console.log(`pnpm maestro:${platform}:${configuration}:install`);
+  await spawnAsync('pnpm', [`maestro:${platform}:${configuration}:install`], {
     cwd: projectRoot,
   });
 }

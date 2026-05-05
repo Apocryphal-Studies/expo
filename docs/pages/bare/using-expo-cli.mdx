@@ -9,6 +9,7 @@ import { BookOpen02Icon } from '@expo/styleguide-icons/outline/BookOpen02Icon';
 
 import { BoxLink } from '~/ui/components/BoxLink';
 import { Collapsible } from '~/ui/components/Collapsible';
+import { FAQ } from '~/ui/components/FAQ';
 import { Terminal } from '~/ui/components/Snippet';
 import { DEMI } from '~/ui/components/Text';
 
@@ -24,15 +25,17 @@ In most cases, executing the following command in a project directory to install
 
 For a detailed installation guide, see [Install Expo modules](/bare/installing-expo-modules).
 
+> **info** After installing the `expo` package, you'll need to configure your project to use Expo CLI. This includes setting up Metro config, Babel preset, and native project configurations. See the [Configure Expo CLI for bundling on Android and iOS](/bare/installing-expo-modules/#configure-expo-cli-for-bundling-on-android-and-ios) section for the complete setup instructions.
+
 ## Why Expo CLI instead of React Native CLI
 
 Expo CLI commands provide several benefits over the similar commands in `@react-native-community/cli`, which includes:
 
 - Instant access to Hermes debugger with <kbd>j</kbd> keystroke.
 - The debugger ships with [React Native DevTools](/debugging/tools/#debugging-with-react-native-devtools).
-- [Continuous Native Generation (CNG)](/workflow/continuous-native-generation/) support with [`expo prebuild`](/workflow/prebuild/) for upgrades, white-labeling, easy third-party package setup, and better maintainability of the codebase (by reducing the surface area).
+- [Continuous Native Generation (CNG)](/workflow/continuous-native-generation/) support with [`expo prebuild`](/more/glossary-of-terms/#prebuild) for upgrades, white-labeling, easy third-party package setup, and better maintainability of the codebase (by reducing the surface area).
 - Support for file-based routing with [`expo-router`](/router/introduction/).
-  - [Async bundling](/router/reference/async-routes) in development.
+  - [Async bundling](/router/web/async-routes) in development.
 - Built-in [environment variable support](/guides/environment-variables) and **.env** file integration.
 - View native logs directly in the terminal alongside JavaScript logs.
 - Improved native build log formatting using Expo CLI's `xcpretty`-style tool built specifically for React Native apps. For example, when compiling a Pod, you can see which Node module included it.
@@ -69,6 +72,8 @@ When building your project, you can choose a device or simulator by using the `-
 
 ## Common questions
 
+<FAQ>
+
 <Collapsible summary="Can I use Expo CLI without installing the Expo Modules API?">
 
 Expo Modules API is also installed when you install the `expo` package with `npx install-expo-modules`. If you want to try out Expo CLI for now without installing Expo Modules API, install the `expo` package with `npm install` and then configure the **react-native.config.js** to exclude the package from autolinking:
@@ -97,6 +102,8 @@ Yes! Refer to the [Customized Prebuild Example repository](https://github.com/by
 
 </Collapsible>
 
+</FAQ>
+
 ## Next steps
 
 Now, with the `expo` package installed and configured in your project, you can start using all features from Expo CLI and SDK. Here are some recommended next steps to dive deep:
@@ -105,6 +112,12 @@ Now, with the `expo` package installed and configured in your project, you can s
   title="Expo CLI Reference"
   description="Learn more about the commands and flags available in Expo CLI."
   href="/more/expo-cli"
+  Icon={BookOpen02Icon}
+/>
+<BoxLink
+  title="Customizing Metro"
+  description="Learn how to customize the Metro bundler configuration for your project."
+  href="/guides/customizing-metro"
   Icon={BookOpen02Icon}
 />
 <BoxLink

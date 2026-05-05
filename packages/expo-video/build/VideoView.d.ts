@@ -1,4 +1,5 @@
-import { ReactNode, PureComponent } from 'react';
+import type { ReactNode } from 'react';
+import { PureComponent } from 'react';
 import type { VideoViewProps } from './VideoView.types';
 /**
  * Returns whether the current device supports Picture in Picture (PiP) mode.
@@ -12,6 +13,9 @@ import type { VideoViewProps } from './VideoView.types';
  */
 export declare function isPictureInPictureSupported(): boolean;
 export declare class VideoView extends PureComponent<VideoViewProps> {
+    /**
+     * A reference to the underlying native view. On web it is a reference to the HTMLVideoElement.
+     */
     nativeRef: import("react").RefObject<any>;
     /**
      * Enters fullscreen mode.

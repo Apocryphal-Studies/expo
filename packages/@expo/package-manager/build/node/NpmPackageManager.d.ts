@@ -1,4 +1,5 @@
-import spawnAsync, { SpawnOptions } from '@expo/spawn-async';
+import type { SpawnOptions } from '@expo/spawn-async';
+import spawnAsync from '@expo/spawn-async';
 import { BasePackageManager } from './BasePackageManager';
 export declare class NpmPackageManager extends BasePackageManager {
     readonly name = "npm";
@@ -17,6 +18,8 @@ export declare class NpmPackageManager extends BasePackageManager {
      * The result from this method can be used for `.updatePackageFileAsync`.
      */
     private parsePackageSpecs;
+    /** Sort dependencies by keys (case-insensitive, stable). Sorting algorithm is taken from https://github.com/npm/package-json/blob/f5db81bdfbba5e9d3bfc0732f8bfe511825a20aa/lib/update-dependencies.js#L9 */
+    private orderDependencies;
     /**
      * Older npm versions have issues with mismatched nested dependencies when adding exact versions.
      * This propagates as issues like mismatched `@expo/config-pugins` versions.

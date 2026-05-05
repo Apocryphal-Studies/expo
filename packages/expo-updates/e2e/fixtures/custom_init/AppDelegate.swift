@@ -1,5 +1,5 @@
-import Expo
-import EXUpdates
+internal import Expo
+internal import EXUpdates
 import React
 import ReactAppDependencyProvider
 
@@ -24,7 +24,7 @@ class CustomReactNativeFactoryDelegate: ExpoReactNativeFactoryDelegate {
   }
 }
 
-@UIApplicationMain
+@main
 class AppDelegate: ExpoAppDelegate {
   var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   // AppDelegate keeps a nullable reference to the updates controller
@@ -56,7 +56,6 @@ class AppDelegate: ExpoAppDelegate {
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-    bindReactNativeFactory(factory)
 
     // AppController instance must always be created first.
     // expo-updates creates a different type of controller
@@ -94,7 +93,7 @@ class AppDelegate: ExpoAppDelegate {
 /**
  Custom view controller that handles React Native and expo-updates initialization
  */
-public class CustomViewController: UIViewController, AppControllerDelegate {
+class CustomViewController: UIViewController, AppControllerDelegate {
   let appDelegate = AppDelegate.shared()
 
   /**

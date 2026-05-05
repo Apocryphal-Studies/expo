@@ -1,5 +1,4 @@
 import { screen, act } from '@testing-library/react-native';
-import React from 'react';
 
 import { router } from '../imperative-api';
 import Stack from '../layouts/StackClient';
@@ -44,6 +43,10 @@ it('should go back to a previous route in the same stack', () => {
             {
               key: expect.any(String),
               name: '1',
+              params: {
+                params: {},
+                screen: 'a',
+              },
               path: undefined,
               state: {
                 index: 2,
@@ -111,6 +114,10 @@ it('should go back to a previous route in the same stack', () => {
             {
               key: expect.any(String),
               name: '1',
+              params: {
+                params: {},
+                screen: 'a',
+              },
               path: undefined,
               state: {
                 index: 0,
@@ -184,6 +191,10 @@ it('should go back to a previous route in different stacks', () => {
             {
               key: expect.any(String),
               name: '1',
+              params: {
+                params: {},
+                screen: 'a',
+              },
               path: undefined,
               state: {
                 index: 1,
@@ -200,6 +211,10 @@ it('should go back to a previous route in different stacks', () => {
                   {
                     key: expect.any(String),
                     name: '2',
+                    params: {
+                      params: {},
+                      screen: 'c',
+                    },
                     path: undefined,
                     state: {
                       index: 1,
@@ -221,6 +236,22 @@ it('should go back to a previous route in different stacks', () => {
                             screen: 'e',
                           },
                           path: undefined,
+                          state: {
+                            index: 0,
+                            key: expect.any(String),
+                            preloadedRoutes: [],
+                            routeNames: ['e', 'd'],
+                            routes: [
+                              {
+                                key: expect.any(String),
+                                name: 'e',
+                                params: {},
+                                path: undefined,
+                              },
+                            ],
+                            stale: false,
+                            type: 'stack',
+                          },
                         },
                       ],
                       stale: false,
@@ -269,6 +300,10 @@ it('should go back to a previous route in different stacks', () => {
             {
               key: expect.any(String),
               name: '1',
+              params: {
+                params: {},
+                screen: 'a',
+              },
               path: undefined,
               state: {
                 index: 0,
@@ -343,6 +378,10 @@ it('will replace the route if the provided href is not in the history', () => {
             {
               key: expect.any(String),
               name: '1',
+              params: {
+                params: {},
+                screen: 'a',
+              },
               path: undefined,
               state: {
                 index: 1,
@@ -359,6 +398,10 @@ it('will replace the route if the provided href is not in the history', () => {
                   {
                     key: expect.any(String),
                     name: '2',
+                    params: {
+                      params: {},
+                      screen: 'c',
+                    },
                     path: undefined,
                     state: {
                       index: 0,
@@ -372,6 +415,22 @@ it('will replace the route if the provided href is not in the history', () => {
                           params: {
                             params: {},
                             screen: 'e',
+                          },
+                          state: {
+                            index: 0,
+                            key: expect.any(String),
+                            preloadedRoutes: [],
+                            routeNames: ['e', 'd'],
+                            routes: [
+                              {
+                                key: expect.any(String),
+                                name: 'e',
+                                params: {},
+                                path: undefined,
+                              },
+                            ],
+                            stale: false,
+                            type: 'stack',
                           },
                         },
                       ],

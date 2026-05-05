@@ -1,4 +1,4 @@
-import { type EventSubscription, PermissionExpiration, PermissionHookOptions, PermissionResponse, PermissionStatus } from 'expo-modules-core';
+import { type EventSubscription, type PermissionResponse } from 'expo-modules-core';
 export declare enum BrightnessMode {
     /**
      * Means that the current brightness mode cannot be determined.
@@ -20,7 +20,7 @@ export type BrightnessEvent = {
      */
     brightness: number;
 };
-export { PermissionExpiration, PermissionHookOptions, PermissionResponse, PermissionStatus };
+export { type PermissionExpiration, type PermissionHookOptions, type PermissionResponse, PermissionStatus, } from 'expo-modules-core';
 /**
  * Returns whether the Brightness API is enabled on the current device. This does not check the app
  * permissions.
@@ -61,11 +61,6 @@ export declare function getSystemBrightnessAsync(): Promise<number>;
  * @platform android
  */
 export declare function setSystemBrightnessAsync(brightnessValue: number): Promise<void>;
-/**
- * @deprecated Use [`restoreSystemBrightnessAsync`](#brightnessrestoresystembrightnessasync) method instead.
- * @platform android
- */
-export declare function useSystemBrightnessAsync(): Promise<void>;
 /**
  * Resets the brightness setting of the current activity to use the system-wide
  * brightness value rather than overriding it.
@@ -115,7 +110,7 @@ export declare function requestPermissionsAsync(): Promise<PermissionResponse>;
  * const [permissionResponse, requestPermission] = Brightness.usePermissions();
  * ```
  */
-export declare const usePermissions: (options?: PermissionHookOptions<object> | undefined) => [PermissionResponse | null, () => Promise<PermissionResponse>, () => Promise<PermissionResponse>];
+export declare const usePermissions: (options?: import("expo-modules-core").PermissionHookOptions<object> | undefined) => [PermissionResponse | null, () => Promise<PermissionResponse>, () => Promise<PermissionResponse>];
 /**
  * Subscribe to brightness (iOS) updates. The event fires whenever
  * the power mode is toggled.

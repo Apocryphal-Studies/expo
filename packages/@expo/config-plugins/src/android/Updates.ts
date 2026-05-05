@@ -1,21 +1,20 @@
-import { ExpoConfig } from '@expo/config-types';
+import type { ExpoConfig } from '@expo/config-types';
 
 import { createBuildGradlePropsConfigPlugin } from './BuildProperties';
+import type { AndroidManifest } from './Manifest';
 import {
   addMetaDataItemToMainApplication,
-  AndroidManifest,
   findMetaDataItem,
   getMainApplicationOrThrow,
   removeMetaDataItemFromMainApplication,
 } from './Manifest';
-import { buildResourceItem, ResourceXML } from './Resources';
-import * as Resources from './Resources';
+import { buildResourceItem, type ResourceXML } from './Resources';
 import { removeStringItem, setStringItem } from './Strings';
-import { ConfigPlugin, ExportedConfigWithProps } from '../Plugin.types';
+import type { ConfigPlugin, ExportedConfigWithProps } from '../Plugin.types';
 import { createStringsXmlPlugin, withAndroidManifest } from '../plugins/android-plugins';
 import { withPlugins } from '../plugins/withPlugins';
+import type { ExpoConfigUpdates } from '../utils/Updates';
 import {
-  ExpoConfigUpdates,
   getDisableAntiBrickingMeasures,
   getExpoUpdatesPackageVersion,
   getRuntimeVersionNullableAsync,
@@ -26,6 +25,7 @@ import {
   getUpdatesEnabled,
   getUpdatesTimeout,
   getUpdateUrl,
+  getUpdatesBsdiffPatchSupportEnabled,
   getUpdatesUseEmbeddedUpdate,
 } from '../utils/Updates';
 import { addWarningAndroid } from '../utils/warnings';
@@ -41,6 +41,7 @@ export enum Config {
   CODE_SIGNING_CERTIFICATE = 'expo.modules.updates.CODE_SIGNING_CERTIFICATE',
   CODE_SIGNING_METADATA = 'expo.modules.updates.CODE_SIGNING_METADATA',
   DISABLE_ANTI_BRICKING_MEASURES = 'expo.modules.updates.DISABLE_ANTI_BRICKING_MEASURES',
+  BSDIFF_PATCH_SUPPORT = 'expo.modules.updates.ENABLE_BSDIFF_PATCH_SUPPORT',
 }
 
 // when making changes to this config plugin, ensure the same changes are also made in eas-cli and build-tools
@@ -87,7 +88,7 @@ const withRuntimeVersionResource = createStringsXmlPlugin(
 );
 
 export async function applyRuntimeVersionFromConfigAsync(
-  config: ExportedConfigWithProps<Resources.ResourceXML>,
+  config: ExportedConfigWithProps<ResourceXML>,
   stringsJSON: ResourceXML
 ): Promise<ResourceXML> {
   const projectRoot = config.modRequest.projectRoot;
@@ -194,6 +195,13 @@ export async function setUpdatesConfigAsync(
     );
   } else {
     removeMetaDataItemFromMainApplication(mainApplication, Config.DISABLE_ANTI_BRICKING_MEASURES);
+  }
+
+  const bsPatchSupport = getUpdatesBsdiffPatchSupportEnabled(config);
+  if (bsPatchSupport) {
+    addMetaDataItemToMainApplication(mainApplication, Config.BSDIFF_PATCH_SUPPORT, 'true');
+  } else {
+    removeMetaDataItemFromMainApplication(mainApplication, Config.BSDIFF_PATCH_SUPPORT);
   }
 
   return await setVersionsConfigAsync(projectRoot, config, androidManifest);

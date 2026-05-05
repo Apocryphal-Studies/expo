@@ -1,8 +1,17 @@
 import { LinkBase, mergeClasses } from '@expo/styleguide';
 import { TriangleDownIcon } from '@expo/styleguide-icons/custom/TriangleDownIcon';
 import { ListIcon } from '@expo/styleguide-icons/outline/ListIcon';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/compat/router';
-import { type ComponentType, type PropsWithChildren, useRef, useEffect } from 'react';
+import {
+  Children,
+  isValidElement,
+  type ComponentType,
+  type PropsWithChildren,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import withHeadingManager, { HeadingManagerProps } from '~/common/withHeadingManager';
 import { PermalinkIcon } from '~/ui/components/Permalink';
@@ -10,10 +19,6 @@ import { PermalinkIcon } from '~/ui/components/Permalink';
 import { Requirement } from './Requirement';
 
 type PrerequisitesProps = PropsWithChildren<{
-  /**
-   * The number of requirements for the prerequisites.
-   */
-  numberOfRequirements: number;
   /**
    * If the prerequisites should be rendered "open" by default.
    */
@@ -23,13 +28,17 @@ type PrerequisitesProps = PropsWithChildren<{
 
 const Prerequisites: ComponentType<PrerequisitesProps> = withHeadingManager(
   ({
-    numberOfRequirements = 1,
     children,
     className,
     headingManager,
     open = false,
   }: PrerequisitesProps & HeadingManagerProps) => {
+    const requirementChildren = Children.toArray(children).filter(
+      child => isValidElement(child) && child.type === Requirement
+    );
+    const numberOfRequirements = requirementChildren.length;
     const router = useRouter();
+    const [isOpen, setIsOpen] = useState(open);
     const detailsRef = useRef<HTMLDetailsElement>(null);
     const anchorId = 'prerequisites';
 
@@ -42,22 +51,32 @@ const Prerequisites: ComponentType<PrerequisitesProps> = withHeadingManager(
         const splitUrl = router.asPath.split('#');
         const hash = splitUrl.length > 0 ? splitUrl[1] : undefined;
         if (hash && hash === heading.current.slug) {
-          detailsRef?.current?.setAttribute('open', '');
+          detailsRef.current?.setAttribute('open', '');
+          setIsOpen(true);
         }
       }
-    }, []);
+    }, [router?.asPath]);
 
+    useEffect(() => {
+      if (open) {
+        detailsRef.current?.setAttribute('open', '');
+        setIsOpen(true);
+      }
+    }, [open]);
     return (
       <details
-        ref={detailsRef}
-        id={anchorId}
+        id={heading.current.slug}
         className={mergeClasses(
-          'mb-3 scroll-m-4 rounded-md border border-default p-0',
-          '[&[open]]:shadow-xs',
+          'border-default mb-3 scroll-m-4 rounded-md border p-0',
+          '[[open]]:shadow-xs',
           '[h4+&]:mt-3 [li>&]:mt-3 [p+&]:mt-3',
           className
         )}
-        open={open}>
+        ref={detailsRef}
+        open={isOpen}
+        onToggle={event => {
+          setIsOpen(event.currentTarget.open);
+        }}>
         <summary
           className={mergeClasses(
             'group m-0 flex cursor-pointer items-center justify-between rounded-md p-1.5 py-3 pr-4',
@@ -65,7 +84,7 @@ const Prerequisites: ComponentType<PrerequisitesProps> = withHeadingManager(
             'hocus:bg-subtle'
           )}>
           <div className="flex items-center">
-            <div className="ml-1.5 mr-2 mt-[5px] self-baseline">
+            <div className="mt-1.25 mr-2 ml-1.5 self-baseline">
               <TriangleDownIcon
                 className={mergeClasses(
                   'icon-sm text-icon-default',
@@ -88,20 +107,39 @@ const Prerequisites: ComponentType<PrerequisitesProps> = withHeadingManager(
               href={'#' + heading.current.slug}
               ref={heading.current.ref}
               onClick={() => {
-                detailsRef?.current?.setAttribute('open', '');
+                setIsOpen(true);
               }}
-              className="ml-1 inline rounded-md p-1 hocus:bg-element"
+              className="hocus:bg-element ml-1 inline rounded-md p-1"
               aria-label="Permalink">
               <PermalinkIcon className="icon-sm invisible inline-flex group-hover:visible group-focus-visible:visible" />
             </LinkBase>
           </div>
           <div>
-            <p className="text-xs text-secondary">
+            <p className="text-secondary text-sm">
               {numberOfRequirements} requirement{numberOfRequirements === 1 ? '' : 's'}
             </p>
           </div>
         </summary>
-        {children}
+        <motion.div
+          initial={false}
+          animate={{
+            transition: { type: 'tween' },
+            height: isOpen ? 'auto' : 0,
+          }}
+          className="overflow-hidden">
+          <div>
+            {requirementChildren.map((child, index) => (
+              <div
+                key={index}
+                className={mergeClasses('border-default flex items-baseline gap-1.5 border-t p-5')}>
+                {numberOfRequirements > 1 && (
+                  <p className="mb-2 text-right font-medium">{index + 1}.</p>
+                )}
+                {child}
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </details>
     );
   }

@@ -1,24 +1,17 @@
 // Entry file for a DOM Component.
 import '@expo/metro-runtime';
 
-import { withErrorOverlay } from '@expo/metro-runtime/error-overlay';
 import React from 'react';
 
-import { JSONValue } from './dom.types';
+import type { JSONValue } from './dom.types';
 import { addEventListener, getActionsObject } from './marshal';
 import registerRootComponent from '../launch/registerRootComponent';
 
-interface MarshalledProps {
-  name: string[];
+export interface MarshalledProps {
+  names: string[];
   props: Record<string, JSONValue>;
   [key: string]: undefined | JSONValue;
 }
-
-interface WindowType {
-  $$EXPO_INITIAL_PROPS?: MarshalledProps;
-}
-
-declare let window: WindowType;
 
 const ACTIONS = getActionsObject!();
 
@@ -65,6 +58,13 @@ function convertError(error: any) {
 }
 
 export function registerDOMComponent(AppModule: any) {
+  if (typeof window.$$EXPO_DOM_HOST_OS === 'undefined') {
+    throw new Error(
+      'Top OS ($$EXPO_DOM_HOST_OS) is not defined. This is a bug in the DOM Component runtime.'
+    );
+  }
+  process.env.EXPO_DOM_HOST_OS = window.$$EXPO_DOM_HOST_OS;
+
   function DOMComponentRoot(props: Record<string, unknown>) {
     // Props listeners
     const [marshalledProps, setProps] = React.useState(() => {
@@ -91,23 +91,22 @@ export function registerDOMComponent(AppModule: any) {
       if (!marshalledProps.names) return {};
       // Create a named map { [name: string]: ProxyFunction }
       // TODO(@kitten): Unclear how this is typed or shaped
-      return Object.fromEntries(
-        (marshalledProps.names as string[]).map((key: string) => {
-          return [key, ACTIONS[key]];
-        })
-      );
+      return marshalledProps.names.reduce((acc: Record<string, any>, key: string) => {
+        acc[key] = ACTIONS[key];
+        return acc;
+      }, {});
     }, [marshalledProps.names]);
 
     return <AppModule {...props} {...(marshalledProps.props || {})} {...proxyActions} />;
   }
 
   try {
+    if (process.env.NODE_ENV !== 'production') {
+      require('@expo/log-box/lib').setupLogBox();
+    }
+
     React.startTransition(() => {
-      if (process.env.NODE_ENV !== 'production') {
-        registerRootComponent(withErrorOverlay(DOMComponentRoot));
-      } else {
-        registerRootComponent(DOMComponentRoot);
-      }
+      registerRootComponent(DOMComponentRoot);
     });
   } catch (e) {
     const error = convertError(e);

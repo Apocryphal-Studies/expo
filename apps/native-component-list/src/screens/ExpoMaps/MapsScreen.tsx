@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 import { optionalRequire } from '../../navigation/routeBuilder';
-import ComponentListScreen, { ListElement } from '../ComponentListScreen';
+import ComponentListScreen, { componentScreensToListElements } from '../ComponentListScreen';
 
 export const MapsScreens = Platform.select({
   android: [
@@ -216,6 +216,14 @@ export const MapsScreens = Platform.select({
       },
     },
     {
+      name: 'Geodesic polyline',
+      route: 'expo-maps/geodesic-polyline',
+      options: {},
+      getComponent() {
+        return optionalRequire(() => require('./apple/MapsGeodesicPolylineScreen'));
+      },
+    },
+    {
       name: 'Polygon',
       route: 'expo-maps/polygon',
       options: {},
@@ -260,12 +268,6 @@ export const MapsScreens = Platform.select({
 });
 
 export default function ImageScreen() {
-  const apis: ListElement[] = MapsScreens.map((screen) => {
-    return {
-      name: screen.name,
-      isAvailable: true,
-      route: `/components/${screen.route}`,
-    };
-  });
+  const apis = componentScreensToListElements(MapsScreens);
   return <ComponentListScreen apis={apis} sort={false} />;
 }

@@ -1,6 +1,6 @@
-import { ExpoPlist } from './IosConfig.types';
-import { ConfigPlugin } from '../Plugin.types';
-import { ExpoConfigUpdates } from '../utils/Updates';
+import type { ExpoPlist } from './IosConfig.types';
+import type { ConfigPlugin } from '../Plugin.types';
+import type { ExpoConfigUpdates } from '../utils/Updates';
 export declare enum Config {
     ENABLED = "EXUpdatesEnabled",
     CHECK_ON_LAUNCH = "EXUpdatesCheckOnLaunch",
@@ -11,7 +11,8 @@ export declare enum Config {
     UPDATES_HAS_EMBEDDED_UPDATE = "EXUpdatesHasEmbeddedUpdate",
     CODE_SIGNING_CERTIFICATE = "EXUpdatesCodeSigningCertificate",
     CODE_SIGNING_METADATA = "EXUpdatesCodeSigningMetadata",
-    DISABLE_ANTI_BRICKING_MEASURES = "EXUpdatesDisableAntiBrickingMeasures"
+    DISABLE_ANTI_BRICKING_MEASURES = "EXUpdatesDisableAntiBrickingMeasures",
+    ENABLE_BSDIFF_PATCH_SUPPORT = "EXUpdatesEnableBsdiffPatchSupport"
 }
 export declare const withUpdates: ConfigPlugin;
 /**

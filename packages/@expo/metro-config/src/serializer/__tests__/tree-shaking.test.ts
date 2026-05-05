@@ -1168,6 +1168,7 @@ it(`removes unused exports`, async () => {
         "metadata": {
           "expoDomComponentReferences": [],
           "isAsync": false,
+          "loaderReferences": [],
           "modulePaths": [
             "/app/index.js",
             "/app/math.js",
@@ -1854,7 +1855,13 @@ it(`recursively expands export all statements while omitting existing and defaul
         if (e && e.__esModule) return e;
         var n = {};
         if (e) Object.keys(e).forEach(function (k) {
-          n[k] = e[k];
+          var d = Object.getOwnPropertyDescriptor(e, k);
+          Object.defineProperty(n, k, d.get ? d : {
+            enumerable: true,
+            get: function () {
+              return e[k];
+            }
+          });
         });
         n.default = e;
         return n;
@@ -1968,4 +1975,66 @@ it(`barrel star empty file`, async () => {
     }),
   ]);
   expectImports(graph, '/app/barrel.js').toEqual([]);
+});
+
+describe('React Compiler', () => {
+  it(`works with tree shaking when React Compiler is enabled`, async () => {
+    const [[, , graph], artifacts] = await serializeShakingAsync(
+      {
+        'index.js': `
+          import { add } from './math';
+          console.log('keep', add(1, 2));
+        `,
+        'math.js': `
+          export function add(a, b) {
+            return a + b;
+          }
+
+          export function subtract(a, b) {
+            return a - b;
+          }
+        `,
+      },
+      {
+        reactCompiler: true,
+      }
+    );
+
+    expectImports(graph, '/app/index.js').toEqual([
+      expect.objectContaining({ absolutePath: '/app/math.js' }),
+    ]);
+    expect(artifacts[0].source).not.toMatch('subtract');
+  });
+
+  it(`works with barrel exports and React Compiler enabled`, async () => {
+    const [[, , graph], artifacts] = await serializeShakingAsync(
+      {
+        'index.js': `
+          import { add } from './barrel';
+          console.log('keep', add(1, 2));
+        `,
+        'barrel.js': `export { add, subtract } from './math';`,
+        'math.js': `
+          export function add(a, b) {
+            return a + b;
+          }
+
+          export function subtract(a, b) {
+            return a - b;
+          }
+        `,
+      },
+      {
+        reactCompiler: true,
+      }
+    );
+
+    expectImports(graph, '/app/index.js').toEqual([
+      expect.objectContaining({ absolutePath: '/app/barrel.js' }),
+    ]);
+    expectImports(graph, '/app/barrel.js').toEqual([
+      expect.objectContaining({ absolutePath: '/app/math.js' }),
+    ]);
+    expect(artifacts[0].source).not.toMatch('subtract');
+  });
 });

@@ -1,10 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.expoInlineManifestPlugin = expoInlineManifestPlugin;
+exports.getConfigPluginProps = getConfigPluginProps;
 const common_1 = require("./common");
 const debug = require('debug')('expo:babel:inline-manifest');
 // Convert expo value to PWA value
-function ensurePWAorientation(orientation) {
+function ensurePWAOrientation(orientation) {
     if (orientation) {
         const webOrientation = orientation.toLowerCase();
         if (webOrientation !== 'default') {
@@ -40,7 +41,7 @@ function getExpoConstantsManifest(projectRoot) {
 function applyWebDefaults({ config, appName, webName }) {
     const appJSON = config.exp;
     // For RN CLI support
-    const { web: webManifest = {}, splash = {}, ios = {}, android = {} } = appJSON;
+    const { web: webManifest = {}, ios = {}, android = {} } = appJSON;
     const languageISOCode = webManifest.lang;
     const primaryColor = appJSON.primaryColor;
     const description = appJSON.description;
@@ -52,14 +53,15 @@ function applyWebDefaults({ config, appName, webName }) {
     const startUrl = webManifest.startUrl;
     const { scope, crossorigin } = webManifest;
     const barStyle = webManifest.barStyle;
-    const orientation = ensurePWAorientation(webManifest.orientation || appJSON.orientation);
+    const orientation = ensurePWAOrientation(webManifest.orientation || appJSON.orientation);
     /**
      * **Splash screen background color**
      * `https://developers.google.com/web/fundamentals/web-app-manifest/#splash-screen`
      * The background_color should be the same color as the load page,
      * to provide a smooth transition from the splash screen to your app.
      */
-    const backgroundColor = webManifest.backgroundColor || splash.backgroundColor; // No default background color
+    const splash = getConfigPluginProps(appJSON, 'expo-splash-screen');
+    const backgroundColor = webManifest.backgroundColor || splash?.backgroundColor; // No default background color
     return {
         ...appJSON,
         name: appName,
@@ -144,36 +146,64 @@ function expoInlineManifestPlugin(api) {
     const platform = api.caller(common_1.getPlatform);
     const possibleProjectRoot = api.caller(common_1.getPossibleProjectRoot);
     const shouldInline = platform === 'web' || isReactServer;
+    // Early exit: return a no-op plugin if we're not going to inline anything
+    if (!shouldInline) {
+        return {
+            name: 'expo-inline-manifest-plugin',
+            visitor: {},
+        };
+    }
     return {
         name: 'expo-inline-manifest-plugin',
+        pre() {
+            this.projectRoot = possibleProjectRoot || this.file.opts.root || '';
+        },
         visitor: {
             MemberExpression(path, state) {
-                // Web-only/React Server-only feature: the native manifest is provided dynamically by the client.
-                if (!shouldInline) {
-                    return;
-                }
-                if (!t.isIdentifier(path.node.object, { name: 'process' }) ||
-                    !t.isIdentifier(path.node.property, { name: 'env' })) {
-                    return;
-                }
+                // We're looking for: process.env.APP_MANIFEST
+                // This visitor is called on every MemberExpression, so we need fast checks
+                // Quick check: the property we're looking for is 'APP_MANIFEST'
+                // The parent must be a MemberExpression with property 'APP_MANIFEST'
                 const parent = path.parentPath;
-                if (!t.isMemberExpression(parent.node)) {
+                if (!parent?.isMemberExpression())
                     return;
-                }
-                const projectRoot = possibleProjectRoot || state.file.opts.root || '';
-                if (
+                // Check if parent's property is APP_MANIFEST (most selective check first)
+                const parentProp = parent.node.property;
+                if (!t.isIdentifier(parentProp) || parentProp.name !== 'APP_MANIFEST')
+                    return;
+                // Now verify this is process.env
+                const obj = path.node.object;
+                const prop = path.node.property;
+                if (!t.isIdentifier(obj) || obj.name !== 'process')
+                    return;
+                if (!t.isIdentifier(prop) || prop.name !== 'env')
+                    return;
+                // Skip if this is an assignment target
+                if (parent.parentPath?.isAssignmentExpression())
+                    return;
                 // Surfaces the `app.json` (config) as an environment variable which is then parsed by
                 // `expo-constants` https://docs.expo.dev/versions/latest/sdk/constants/
-                t.isIdentifier(parent.node.property, {
-                    name: 'APP_MANIFEST',
-                }) &&
-                    !parent.parentPath.isAssignmentExpression()) {
-                    const manifest = getExpoAppManifest(projectRoot);
-                    if (manifest !== null) {
-                        parent.replaceWith(t.stringLiteral(manifest));
-                    }
+                const manifest = getExpoAppManifest(state.projectRoot);
+                if (manifest !== null) {
+                    parent.replaceWith(t.stringLiteral(manifest));
                 }
             },
         },
     };
 }
+/**
+ * Get the props for a config-plugin
+ */
+function getConfigPluginProps(config, pluginName) {
+    const plugin = (config.plugins ?? []).find((plugin) => {
+        if (Array.isArray(plugin)) {
+            return plugin[0] === pluginName;
+        }
+        return plugin === pluginName;
+    });
+    if (Array.isArray(plugin)) {
+        return (plugin[1] ?? null);
+    }
+    return null;
+}
+//# sourceMappingURL=expo-inline-manifest-plugin.js.map

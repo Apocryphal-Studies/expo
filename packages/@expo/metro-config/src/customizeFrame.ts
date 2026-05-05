@@ -33,7 +33,7 @@ export const INTERNAL_CALLSITES_REGEX = new RegExp(
     // Babel helpers that implement language features
     'node_modules/@babel/runtime/.+\\.js$',
     // Hide Hermes internal bytecode
-    '/InternalBytecode/InternalBytecode\\.js$',
+    '/(?:InternalBytecode/)?InternalBytecode\\.js$',
     // Block native code invocations
     `\\[native code\\]`,
     // Hide react-dom (web)
@@ -43,6 +43,7 @@ export const INTERNAL_CALLSITES_REGEX = new RegExp(
     // Block expo's metro-runtime
     '@expo/metro-runtime/.+\\.ts',
     '@expo/server/.+\\.ts',
+    'expo-server/.+\\.ts',
     // Block upstream metro-runtime
     '/metro-runtime/.+\\.js$',
     // Expo's metro-runtime require patch:

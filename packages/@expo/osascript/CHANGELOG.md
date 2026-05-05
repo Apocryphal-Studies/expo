@@ -10,6 +10,28 @@
 
 ### 💡 Others
 
+## 2.4.2 — 2026-01-26
+
+### 💡 Others
+
+- Drop `exec-async` and call into `@expo/spawn-async` instead ([#42483](https://github.com/expo/expo/pull/42483) by [@kitten](https://github.com/kitten))
+
+## 2.4.1 — 2026-01-22
+
+_This version does not introduce any user-facing changes._
+
+## 2.4.0 — 2026-01-21
+
+_This version does not introduce any user-facing changes._
+
+## 2.3.8 - 2025-12-05
+
+_This version does not introduce any user-facing changes._
+
+## 2.3.7 — 2025-09-11
+
+_This version does not introduce any user-facing changes._
+
 ## 2.3.6 — 2025-09-02
 
 _This version does not introduce any user-facing changes._

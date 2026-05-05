@@ -14,7 +14,8 @@ use_dev_client = false
 begin
   # No dev client if we are using native debug
   if ENV['EX_UPDATES_NATIVE_DEBUG'] != '1'
-    use_dev_client = `node --print "require('expo-dev-client/package.json').version" 2>/dev/null`.length > 0
+    project_root = ENV['PROJECT_ROOT'] || Pod::Config.instance.installation_root.to_s
+    use_dev_client = File.dirname(`node --print "require.resolve('expo-dev-client/package.json', { paths: ['#{__dir__}', '#{project_root}'] })"`).length > 0
   end
 rescue
   use_dev_client = false
@@ -29,9 +30,9 @@ Pod::Spec.new do |s|
   s.author         = package['author']
   s.homepage       = package['homepage']
   s.platforms      = {
-    :ios => '15.1',
-    :tvos => '15.1',
-    :osx => '11.0'
+    :ios => '16.4',
+    :tvos => '16.4',
+    :osx => '13.4'
   }
   s.swift_version  = '5.9'
   s.source         = { git: 'https://github.com/expo/expo.git' }
@@ -45,6 +46,16 @@ Pod::Spec.new do |s|
   s.dependency 'ReachabilitySwift'
   if podfile_properties['expo.updates.useThirdPartySQLitePod'] === 'true'
     s.dependency 'sqlite3'
+  end
+  s.libraries = 'bz2'
+  
+  def s.vendor_bsdiff_src!
+    vendor_dir = File.join(__dir__, '..', 'ios', 'EXUpdates', 'BSPatch')
+    FileUtils.rm_rf(vendor_dir)
+    FileUtils.mkdir_p(vendor_dir)
+
+    vendor_src_dir = File.join(__dir__, '..', 'vendor', 'bspatch')
+    FileUtils.cp(File.join(vendor_src_dir, 'bspatch.c'), vendor_dir)
   end
 
   unless defined?(install_modules_dependencies)
@@ -77,6 +88,7 @@ Pod::Spec.new do |s|
   end
 
   s.pod_target_xcconfig = {
+    'HEADER_SEARCH_PATHS' => '$(inherited) "$(PODS_TARGET_SRCROOT)/EXUpdates/BSPatch"',
     'GCC_TREAT_INCOMPATIBLE_POINTER_TYPE_WARNINGS_AS_ERRORS' => 'YES',
     'GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS' => 'YES',
     'DEFINES_MODULE' => 'YES',
@@ -89,19 +101,21 @@ Pod::Spec.new do |s|
   s.user_target_xcconfig = {
     'HEADER_SEARCH_PATHS' => '"${PODS_CONFIGURATION_BUILD_DIR}/EXUpdates/Swift Compatibility Header"',
   }
+  s.vendor_bsdiff_src!
 
   if !ex_updates_native_debug && !$ExpoUseSources&.include?(package['name']) && ENV['EXPO_USE_SOURCE'].to_i == 0 && File.exist?("#{s.name}.xcframework") && Gem::Version.new(Pod::VERSION) >= Gem::Version.new('1.10.0')
-    s.source_files = "#{s.name}/**/*.h"
+    s.source_files = "#{s.name}/**/*.h", "EXUpdates/BSPatch/*.{c,h}"
     s.vendored_frameworks = "#{s.name}.xcframework"
   else
-    s.source_files = "#{s.name}/**/*.{h,m,swift}"
+    s.source_files = "#{s.name}/**/*.{h,m,swift}", "EXUpdates/BSPatch/*.{c}"
   end
 
   if $expo_updates_create_updates_resources != false
+    project_root_env_var = ENV['PROJECT_ROOT'] ? "export PROJECT_ROOT=#{ENV['PROJECT_ROOT']}\n" : ""
     force_bundling_flag = ex_updates_native_debug ? "export FORCE_BUNDLING=1\n" : ""
     s.script_phase = {
       :name => 'Generate updates resources for expo-updates',
-      :script => force_bundling_flag + 'bash -l -c "$PODS_TARGET_SRCROOT/../scripts/create-updates-resources-ios.sh"',
+      :script => project_root_env_var + force_bundling_flag + 'bash -l -c "$PODS_TARGET_SRCROOT/../scripts/create-updates-resources-ios.sh"',
       :execution_position => :before_compile
     }
 

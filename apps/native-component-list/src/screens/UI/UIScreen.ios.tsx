@@ -1,5 +1,5 @@
 import { optionalRequire } from '../../navigation/routeBuilder';
-import ComponentListScreen, { ListElement } from '../ComponentListScreen';
+import ComponentListScreen, { componentScreensToListElements } from '../ComponentListScreen';
 
 export const UIScreens = [
   {
@@ -19,19 +19,59 @@ export const UIScreens = [
     },
   },
   {
-    name: 'Date Time Picker component',
+    name: 'DatePicker component',
     route: 'ui/date-picker',
     options: {},
     getComponent() {
-      return optionalRequire(() => require('./DateTimePickerScreen'));
+      return optionalRequire(() => require('./DatePickerScreen'));
     },
   },
   {
-    name: 'Switch component',
-    route: 'ui/switch',
+    name: 'Community BottomSheet replacement',
+    route: 'ui/community-bottomsheet',
     options: {},
     getComponent() {
-      return optionalRequire(() => require('./SwitchScreen'));
+      return optionalRequire(() => require('./CommunityBottomSheetScreen'));
+    },
+  },
+  {
+    name: 'Community Picker replacement',
+    route: 'ui/community-picker',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./CommunityPickerScreen'));
+    },
+  },
+  {
+    name: 'Community DateTimePicker replacement',
+    route: 'ui/community-datetimepicker',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./CommunityDateTimePickerScreen'));
+    },
+  },
+  {
+    name: 'Community SegmentedControl replacement',
+    route: 'ui/community-segmented-control',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./CommunitySegmentedControlScreen'));
+    },
+  },
+  {
+    name: 'TabView component',
+    route: 'ui/tabview',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./TabViewScreen'));
+    },
+  },
+  {
+    name: 'Toggle component',
+    route: 'ui/toggle',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ToggleScreen'));
     },
   },
   {
@@ -59,6 +99,30 @@ export const UIScreens = [
     },
   },
   {
+    name: 'Stepper component',
+    route: 'ui/stepper',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./StepperScreen'));
+    },
+  },
+  {
+    name: 'Menu component',
+    route: 'ui/menu',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./MenuScreen'));
+    },
+  },
+  {
+    name: 'ConfirmationDialog component',
+    route: 'ui/confirmation-dialog',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ConfirmationDialogScreen'));
+    },
+  },
+  {
     name: 'ContextMenu component',
     route: 'ui/context-menu',
     options: {},
@@ -75,19 +139,19 @@ export const UIScreens = [
     },
   },
   {
-    name: 'TextInput component',
-    route: 'ui/textInput',
+    name: 'TextField component',
+    route: 'ui/textField',
     options: {},
     getComponent() {
-      return optionalRequire(() => require('./TextInputScreen'));
+      return optionalRequire(() => require('./TextFieldScreen'));
     },
   },
   {
-    name: 'Progress component',
-    route: 'ui/progress',
+    name: 'ProgressView component',
+    route: 'ui/progress-view',
     options: {},
     getComponent() {
-      return optionalRequire(() => require('./ProgressScreen'));
+      return optionalRequire(() => require('./ProgressViewScreen'));
     },
   },
   {
@@ -96,6 +160,14 @@ export const UIScreens = [
     options: {},
     getComponent() {
       return optionalRequire(() => require('./ListScreen'));
+    },
+  },
+  {
+    name: 'Section component',
+    route: 'ui/section',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./SectionScreen'));
     },
   },
   {
@@ -147,6 +219,14 @@ export const UIScreens = [
     },
   },
   {
+    name: 'Content Transition',
+    route: 'ui/content-transition',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ContentTransitionScreen'));
+    },
+  },
+  {
     name: 'Glass Effect',
     route: 'ui/glass-effect',
     options: {},
@@ -154,16 +234,130 @@ export const UIScreens = [
       return optionalRequire(() => require('./GlassEffectScreen'));
     },
   },
+  {
+    name: 'Matched Geometry Effect',
+    route: 'ui/matched-geometry-effect',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./MatchedGeometryEffectScreen'));
+    },
+  },
+  {
+    name: 'LazyVStack / LazyHStack',
+    route: 'ui/lazy-stack',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./LazyStackScreen'));
+    },
+  },
+  {
+    name: 'ScrollView component',
+    route: 'ui/scrollview',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ScrollViewScreen'));
+    },
+  },
+  {
+    name: 'Shapes',
+    route: 'ui/shapes',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ShapesScreen'));
+    },
+  },
+  {
+    name: 'Image component',
+    route: 'ui/image',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ImageScreen'));
+    },
+  },
+  {
+    name: 'Text component',
+    route: 'ui/text',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./TextScreen'));
+    },
+  },
+  {
+    name: 'Link component',
+    route: 'ui/link',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./LinkScreen'));
+    },
+  },
+  {
+    name: 'Mask component',
+    route: 'ui/mask',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./MaskScreen'));
+    },
+  },
+  {
+    name: 'Overlay component',
+    route: 'ui/overlay',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./OverlayScreen'));
+    },
+  },
+  {
+    name: 'Popover component',
+    route: 'ui/popover',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./PopoverScreen'));
+    },
+  },
+  {
+    name: 'RTL Layout',
+    route: 'ui/rtl',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./RTLScreen'));
+    },
+  },
+  {
+    name: 'Grid component',
+    route: 'ui/grid',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./GridScreen'));
+    },
+  },
+  {
+    name: 'Host Ignore Safe Area Keyboard',
+    route: 'ui/host-ignore-safe-area-keyboard',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./HostIgnoreSafeAreaKeyboardScreen'));
+    },
+  },
+  {
+    name: 'Extending Expo UI',
+    route: 'ui/extending',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./ExtendingExpoUIScreen'));
+    },
+  },
+  {
+    name: 'rotation3DEffect modifier',
+    route: 'ui/rotation-3d-effect',
+    options: {},
+    getComponent() {
+      return optionalRequire(() => require('./Rotation3DEffectScreen'));
+    },
+  },
 ];
 
 export default function UIScreen() {
-  const apis: ListElement[] = UIScreens.map((screen) => {
-    return {
-      name: screen.name,
-      isAvailable: true,
-      route: `/components/${screen.route}`,
-    };
-  });
+  const apis = componentScreensToListElements(UIScreens);
   return <ComponentListScreen apis={apis} sort />;
 }
 

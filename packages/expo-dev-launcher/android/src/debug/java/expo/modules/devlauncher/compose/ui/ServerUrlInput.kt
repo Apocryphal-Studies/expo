@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,15 +19,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.composeunstyled.TextField
 import com.composeunstyled.TextInput
-import expo.modules.devlauncher.compose.utils.validateUrl
+import expo.modules.devlauncher.compose.utils.sanitizeUrlString
 import expo.modules.devmenu.compose.newtheme.NewAppTheme
 import expo.modules.devmenu.compose.primitives.NewText
 
@@ -36,6 +43,18 @@ fun ServerUrlInput(
 ) {
   var url by remember { mutableStateOf("") }
   val context = LocalContext.current
+
+  fun connectToURL() {
+    val sanitizedURL = sanitizeUrlString(url)
+    if (sanitizedURL != null) {
+      openApp(sanitizedURL)
+      url = ""
+    } else {
+      Toast
+        .makeText(context, "Invalid URL", Toast.LENGTH_SHORT)
+        .show()
+    }
+  }
 
   Column(
     verticalArrangement = Arrangement.spacedBy(NewAppTheme.spacing.`2`)
@@ -50,6 +69,13 @@ fun ServerUrlInput(
       singleLine = true,
       modifier = Modifier
         .fillMaxWidth()
+        .onPreviewKeyEvent { event ->
+          val isEnterRelease = event.key == Key.Enter && event.type == KeyEventType.KeyUp
+          if (isEnterRelease) {
+            connectToURL()
+          }
+          isEnterRelease
+        }
         .border(
           width = 1.dp,
           shape = RoundedCornerShape(NewAppTheme.borderRadius.xl),
@@ -61,14 +87,18 @@ fun ServerUrlInput(
       keyboardOptions = KeyboardOptions(
         capitalization = KeyboardCapitalization.None,
         autoCorrectEnabled = false,
-        keyboardType = KeyboardType.Uri
+        keyboardType = KeyboardType.Uri,
+        imeAction = ImeAction.Go
+      ),
+      keyboardActions = KeyboardActions(
+        onGo = { connectToURL() }
       ),
       cursorBrush = SolidColor(NewAppTheme.colors.text.default.copy(alpha = 0.9f))
     ) {
       TextInput(
         placeholder = {
           NewText(
-            text = "http://localhost:8081",
+            text = "exp://",
             style = NewAppTheme.font.md,
             color = NewAppTheme.colors.text.secondary
           )
@@ -85,15 +115,8 @@ fun ServerUrlInput(
       textStyle = NewAppTheme.font.md.merge(
         fontWeight = FontWeight.SemiBold
       ),
-      onClick = {
-        if (validateUrl(url)) {
-          openApp(url)
-        } else {
-          Toast
-            .makeText(context, "Invalid URL", Toast.LENGTH_SHORT)
-            .show()
-        }
-      }
+      enabled = url.isNotEmpty(),
+      onClick = { connectToURL() }
     )
   }
 }

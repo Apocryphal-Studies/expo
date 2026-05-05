@@ -4,11 +4,19 @@
 
 ### 🛠 Breaking changes
 
+- Bumped minimum iOS/tvOS version to 16.4, macOS to 13.4. ([#43296](https://github.com/expo/expo/pull/43296) by [@tsapeta](https://github.com/tsapeta))
+
 ### 🎉 New features
 
 ### 🐛 Bug fixes
 
 ### 💡 Others
+
+## 55.0.0 — 2026-01-21
+
+### 💡 Others
+
+- Remove iOS test files from the published package content. ([#39547](https://github.com/expo/expo/pull/39547) by [@Simek](https://github.com/Simek))
 
 ## 5.0.0 — 2025-08-13
 

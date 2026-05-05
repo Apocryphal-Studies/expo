@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.filterMapSearchPaths = void 0;
 exports.registerAutolinkingArguments = registerAutolinkingArguments;
 exports.createAutolinkingOptionsLoader = createAutolinkingOptionsLoader;
-const find_up_1 = __importDefault(require("find-up"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const isJSONObject = (x) => x != null && typeof x === 'object';
@@ -56,6 +55,10 @@ const parsePackageJsonOptions = (packageJson, appRoot, platform) => {
         }
     }
     const mergedOptions = { ...autolinkingOptions, ...platformOptions };
+    // NOTE(@kitten): For `include`, we don't override options per platform, but merge the lists
+    if (Array.isArray(autolinkingOptions?.include) && Array.isArray(platformOptions?.include)) {
+        mergedOptions.include = [...autolinkingOptions.include, ...platformOptions.include];
+    }
     const outputOptions = {};
     // legacy_shallowReactNativeLinking
     if (mergedOptions.legacy_shallowReactNativeLinking != null) {
@@ -76,6 +79,10 @@ const parsePackageJsonOptions = (packageJson, appRoot, platform) => {
     // exclude
     if (Array.isArray(mergedOptions.exclude)) {
         outputOptions.exclude = mergedOptions.exclude.filter((x) => typeof x === 'string');
+    }
+    // include
+    if (Array.isArray(mergedOptions.include)) {
+        outputOptions.include = mergedOptions.include.filter((x) => typeof x === 'string');
     }
     // buildFromSource
     if (Array.isArray(mergedOptions.buildFromSource)) {
@@ -110,12 +117,14 @@ const parseExtraArgumentsOptions = (args) => {
     };
 };
 const findPackageJsonPathAsync = async (commandRoot) => {
-    const cwd = process.cwd();
-    const result = await (0, find_up_1.default)('package.json', { cwd: commandRoot || cwd });
-    if (!result) {
-        throw new Error(`Couldn't find "package.json" up from path "${commandRoot || cwd}"`);
+    const root = commandRoot || process.cwd();
+    for (let dir = root; path_1.default.dirname(dir) !== dir; dir = path_1.default.dirname(dir)) {
+        const file = path_1.default.resolve(dir, 'package.json');
+        if (fs_1.default.existsSync(file)) {
+            return file;
+        }
     }
-    return result;
+    throw new Error(`Couldn't find "package.json" up from path "${root}"`);
 };
 const loadPackageJSONAsync = async (packageJsonPath) => {
     const packageJsonText = await fs_1.default.promises.readFile(packageJsonPath, 'utf8');
@@ -162,6 +171,7 @@ const normalizeAutolinkingOptions = (options, appRoot) => {
             ? (resolvePathMaybe(options.nativeModulesDir, appRoot) ?? null)
             : (resolvePathMaybe('./modules', appRoot) ?? null),
         exclude: options.exclude ?? [],
+        include: options.include ?? [],
         buildFromSource: options.buildFromSource,
         flags: options.flags,
     };

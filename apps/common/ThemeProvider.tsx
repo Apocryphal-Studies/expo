@@ -1,6 +1,6 @@
 import { darkTheme, lightTheme } from '@expo/styleguide-base';
-import React, { createContext, useState, useContext, PropsWithChildren } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useContext, PropsWithChildren } from 'react';
+import { useColorScheme, Appearance } from 'react-native';
 
 export type ThemeName = 'light' | 'dark';
 export type ThemeType = typeof lightTheme | typeof darkTheme;
@@ -18,23 +18,16 @@ export const ThemeContext = createContext<ThemeContextType>({
 });
 
 export function ThemeProvider({ children }: PropsWithChildren) {
-  const defaultTheme = useColorScheme() ?? 'light';
-  const [currentThemeName, setCurrentThemeName] = useState<ThemeName>(defaultTheme);
-  const [currentTheme, setCurrentTheme] = useState<ThemeType>(
-    defaultTheme === 'dark' ? darkTheme : lightTheme
-  );
-
-  function setTheme(name: ThemeName) {
-    setCurrentThemeName(name);
-    setCurrentTheme(name === 'dark' ? darkTheme : lightTheme);
-  }
+  const systemColorScheme = useColorScheme();
+  const currentThemeName = systemColorScheme !== 'unspecified' ? systemColorScheme : 'light';
+  const currentTheme = currentThemeName === 'dark' ? darkTheme : lightTheme;
 
   return (
     <ThemeContext.Provider
       value={{
         name: currentThemeName,
         theme: currentTheme,
-        setTheme,
+        setTheme: Appearance.setColorScheme,
       }}>
       {children}
     </ThemeContext.Provider>

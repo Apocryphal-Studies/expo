@@ -6,14 +6,19 @@ description: Learn how to install multiple variants of an app on the same device
 
 import { Collapsible } from '~/ui/components/Collapsible';
 import { ContentSpotlight } from '~/ui/components/ContentSpotlight';
+import { Prerequisites, Requirement } from '~/ui/components/Prerequisites';
 
 When creating [development, preview, and production builds](/build/eas-json/#common-use-cases), installing these build variants simultaneously on the same device is common. This allows working in development, previewing the next version of the app, and running the production version on a device without needing to uninstall and reinstall the app.
 
 This guide provides the steps required to configure multiple (development and production) variants to install and use them on the same device.
 
-## Prerequisites
-
-To have multiple variants of an app installed on your device, each variant must have a unique [Application ID (Android)](/versions/latest/config/app/#package) or [Bundle Identifier (iOS)](/versions/latest/config/app/#bundleidentifier).
+<Prerequisites>
+  <Requirement title="Unique Application ID or Bundle Identifier per variant">
+    To have multiple variants of an app installed on your device, each variant must have a unique
+    [Application ID (Android)](/versions/latest/config/app/#package) or [Bundle Identifier
+    (iOS)](/versions/latest/config/app/#bundleidentifier).
+  </Requirement>
+</Prerequisites>
 
 ## Configure development and production variants
 
@@ -148,7 +153,9 @@ When you run `eas build --profile production` the `APP_VARIANT` variable environ
 
 > **Note**: If you use EAS Update to publish JavaScript updates of your app, you should be cautious to set the correct environment variables for the app variant that you are publishing for when you run the `eas update` command. See the EAS Build [Environment variables and secrets](/build/updates) for more information.
 
-### In bare project
+### In an existing (bare) React Native project
+
+> **info** If you want to use your [app config file](/workflow/configuration/) as the source of truth for your app configuration (including bundle identifiers and package names for variants), you need to migrate to [Continuous Native Generation (CNG)](/workflow/continuous-native-generation/) and add **android** and **ios** directories to your **.gitignore** file. This is especially important if you started with a React Native CLI project and added custom native code. This ensures that the native project configuration doesn't take precedence over your app config, especially when using bundle ID lookup behavior. Without this, you may experience issues where the wrong app variant runs or development builds aren't detected properly. Alternatively, you can explicitly opt for the Android flavors and iOS schemes as described below.
 
 #### Android
 

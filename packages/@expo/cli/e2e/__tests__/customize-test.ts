@@ -76,9 +76,10 @@ it('runs `npx expo customize`', async () => {
     'App.js',
     'app.json',
     'babel.config.js',
-    'bun.lock',
+    'index.js',
     'metro.config.js',
     'package.json',
+    'pnpm-lock.yaml',
     'public/index.html',
   ]);
 });
@@ -89,7 +90,7 @@ it('runs `npx expo customize tsconfig.json`', async () => {
     'with-router',
     {
       reuseExisting: false,
-      sdkVersion: '52.0.0',
+      linkExpoPackages: ['expo-router'],
     }
   );
 
@@ -110,7 +111,7 @@ it('runs `npx expo customize tsconfig.json` on a partially setup project', async
     'with-router',
     {
       reuseExisting: false,
-      sdkVersion: '52.0.0',
+      linkExpoPackages: ['expo-router'],
     }
   );
 
@@ -144,7 +145,10 @@ it('runs `npx expo customize tsconfig.json` sets up typed routes', async () => {
   const projectRoot = await setupTestProjectWithOptionsAsync(
     'expo-customize-typed-routes',
     'with-router-typed-routes',
-    { reuseExisting: false, linkExpoPackages: ['expo-router'] }
+    {
+      reuseExisting: false,
+      linkExpoPackages: ['expo-router'],
+    }
   );
 
   // `npx expo customize tsconfig.json`

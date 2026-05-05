@@ -8,22 +8,29 @@ function getCaller(props: Record<string, string | boolean>): babel.TransformCall
   return props as unknown as babel.TransformCaller;
 }
 
-jest.mock('../common.ts', () => ({
-  ...jest.requireActual('../common.ts'),
-  hasModule: jest.fn((moduleId) => {
+jest.mock('../utils/resolveModule.ts', () => {
+  function resolveModule(_api: any, id: string): string | null {
     if (
       [
-        'react-native-worklets',
-        'react-native-reanimated',
-        'expo-router',
+        'react-native-worklets/plugin',
+        'react-native-reanimated/plugin',
+        '@expo/ui/babel-plugin',
+        'expo-router/package.json',
+        'expo-widgets/package.json',
         '@expo/vector-icons',
-      ].includes(moduleId)
+      ].includes(id)
     ) {
-      return true;
+      return id;
     }
-    return false;
-  }),
-}));
+    return null;
+  }
+
+  return {
+    ...jest.requireActual('../utils/resolveModule.ts'),
+    resolveModule: jest.fn(resolveModule),
+    hasModule: jest.fn((api, id) => !!resolveModule(api, id)),
+  };
+});
 
 describe('flow + esm', () => {
   const BABEL_OPTIONS = {
@@ -154,7 +161,8 @@ it(`compiles sample file with Metro targeting Hermes`, () => {
 
   expect(withHermes.code).not.toEqual(withoutHermes.code);
 
-  // 😎
+  // Hermes v1 supports most modern JS features natively, so the output
+  // should be shorter than the default profile (fewer transforms applied).
   expect(withHermes.code!.length).toBeLessThan(withoutHermes.code!.length);
 });
 
@@ -175,14 +183,14 @@ it(`supports overwriting the default engine option`, () => {
       ],
     ],
     sourceMaps: true,
-    caller: getCaller({ name: 'metro', platform: 'ios', engine: 'hermes' }),
+    caller: getCaller({ name: 'metro', platform: 'ios', engine: 'hermes', isDev: true }),
   })!;
 
   const secondPass = babel.transformFileSync(fileName, {
     babelrc: false,
     presets: [[preset, {}]],
     sourceMaps: true,
-    caller: getCaller({ name: 'metro', platform: 'ios', engine: 'hermes' }),
+    caller: getCaller({ name: 'metro', platform: 'ios', engine: 'hermes', isDev: true }),
   })!;
 
   expect(firstPass.code).not.toEqual(secondPass.code);
@@ -264,7 +272,7 @@ export * as default from './Animated';
       caller,
     };
 
-    const code = babel.transformFileSync(samplesPath, options)!.code;
+    const code = babel.transformFileSync(samplesPath, options)!.code || '';
     expect(code).toContain("'worklet';");
     expect(code).toMatchSnapshot();
   });
@@ -285,7 +293,7 @@ export * as default from './Animated';
     function stablePaths(src) {
       return src
         .replace(new RegExp(samplesPath, 'g'), '[mock]/worklet.js')
-        .replace(/version:".*"/, 'version:"[GLOBAL]"');
+        .replace(/__pluginVersion="\d+(?:\.\d+){2}"/, '__pluginVersion="[GLOBAL]"');
     }
 
     const code = stablePaths(babel.transformFileSync(samplesPath, options)!.code);
@@ -301,6 +309,35 @@ export * as default from './Animated';
         })!.code
       )
     ).toBe(code);
+  });
+
+  it(`auto-includes the @expo/ui babel plugin alongside reanimated`, () => {
+    // Regression test: the auto-include for `@expo/ui/babel-plugin` must live
+    // in its own IIFE. Sharing the reanimated/worklets fallback chain caused
+    // the chain's early return to skip @expo/ui entirely whenever reanimated
+    // was resolvable.
+    const api = {
+      caller: (cb: (caller: any) => unknown) =>
+        cb({
+          name: 'metro',
+          platform: 'ios',
+          engine: 'hermes',
+          isDev: false,
+          supportsStaticESM: false,
+        }),
+      assertVersion: () => {},
+    };
+
+    const config = (preset as any)(api, {});
+    const pluginNames = (config.plugins ?? [])
+      .flat()
+      .filter((p: any): p is Function => typeof p === 'function')
+      .map((p: any) => p.name);
+
+    // Both plugins must be present. If the @expo/ui auto-include slips back
+    // into the reanimated/worklets fallback chain, reanimated's early return
+    // drops `expoUiPlugin` from the list.
+    expect(pluginNames).toEqual(expect.arrayContaining(['WorkletsBabelPlugin', 'expoUiPlugin']));
   });
 
   it(`does not alias @expo/vector-icons in the transformer`, () => {

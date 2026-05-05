@@ -1,6 +1,7 @@
 import spawnAsync from '@expo/spawn-async';
 import chalk from 'chalk';
 import type { ExpoConfig, ProjectConfig } from 'expo/config';
+import type { Props as SplashProps } from 'expo-splash-screen/plugin';
 import path from 'path';
 import semver from 'semver';
 
@@ -31,22 +32,33 @@ export async function getExpoConfigSourcesAsync(
   // external files in config
   const isAndroid = options.platforms.includes('android');
   const isIos = options.platforms.includes('ios');
-  const splashScreenPluginProps = getConfigPluginProps<{
-    image?: string;
-    dark?: {
-      image?: string;
-    };
-    android?: NonNullable<ExpoConfig['android']>['splash'];
-    ios?: NonNullable<ExpoConfig['ios']>['splash'];
-  }>(expoConfig, 'expo-splash-screen');
+  const splashScreenPluginProps = getConfigPluginProps<SplashProps>(
+    expoConfig,
+    'expo-splash-screen'
+  );
+  const fontPluginProps = getConfigPluginProps<{
+    // Type mirrors FontProps from expo-font/plugin/src/withFonts.ts
+    fonts?: string[];
+    android?: { fonts?: (string | { fontDefinitions: { path: string }[] })[] };
+    ios?: { fonts?: string[] };
+  }>(expoConfig, 'expo-font');
+
   const externalFiles = [
+    // expo-font files
+    ...(fontPluginProps?.fonts ?? []),
+    ...(isIos ? (fontPluginProps?.ios?.fonts ?? []) : []),
+    ...(isAndroid
+      ? (fontPluginProps?.android?.fonts ?? []).flatMap((f) =>
+          typeof f === 'string' ? [f] : (f.fontDefinitions ?? []).map((d) => d.path)
+        )
+      : []),
+
     // icons
     expoConfig.icon,
     isAndroid ? expoConfig.android?.icon : undefined,
-    isIos ? expoConfig.ios?.icon : undefined,
+    ...(isIos ? collectIosIcons(expoConfig.ios?.icon) : []),
     isAndroid ? expoConfig.android?.adaptiveIcon?.foregroundImage : undefined,
     isAndroid ? expoConfig.android?.adaptiveIcon?.backgroundImage : undefined,
-    expoConfig.notification?.icon,
 
     // expo-splash-screen images
     splashScreenPluginProps?.image,
@@ -68,34 +80,18 @@ export async function getExpoConfigSourcesAsync(
     isIos ? splashScreenPluginProps?.ios?.dark?.image : undefined,
     isIos ? splashScreenPluginProps?.ios?.dark?.tabletImage : undefined,
 
-    // legacy splash images
-    expoConfig.splash?.image,
-    isAndroid ? expoConfig.android?.splash?.image : undefined,
-    isAndroid ? expoConfig.android?.splash?.mdpi : undefined,
-    isAndroid ? expoConfig.android?.splash?.hdpi : undefined,
-    isAndroid ? expoConfig.android?.splash?.xhdpi : undefined,
-    isAndroid ? expoConfig.android?.splash?.xxhdpi : undefined,
-    isAndroid ? expoConfig.android?.splash?.xxxhdpi : undefined,
-    isIos ? expoConfig.ios?.splash?.image : undefined,
-    isIos ? expoConfig.ios?.splash?.tabletImage : undefined,
-
     // google service files
     isAndroid ? expoConfig.android?.googleServicesFile : undefined,
     isIos ? expoConfig.ios?.googleServicesFile : undefined,
-  ].filter(Boolean) as string[];
+  ]
+    .filter((file): file is string => Boolean(file))
+    .map((filePath) => ensureRelativePath(projectRoot, filePath));
+
   const externalFileSources = (
     await Promise.all(
-      externalFiles.map(async (file) => {
-        const result = await getFileBasedHashSourceAsync(
-          projectRoot,
-          file,
-          'expoConfigExternalFile'
-        );
-        if (result != null) {
-          debug(`Adding config external file - ${chalk.dim(file)}`);
-        }
-        return result;
-      })
+      externalFiles.map((file) =>
+        createHashSourceExternalFileAsync({ projectRoot, file, reason: 'expoConfigExternalFile' })
+      )
     )
   ).filter(Boolean) as HashSource[];
   results.push(...externalFileSources);
@@ -180,12 +176,9 @@ function normalizeExpoConfig(
 
   if (sourceSkips & SourceSkips.ExpoConfigAssets) {
     delete normalizedConfig.icon;
-    delete normalizedConfig.splash;
     delete normalizedConfig.android?.adaptiveIcon;
     delete normalizedConfig.android?.icon;
-    delete normalizedConfig.android?.splash;
     delete normalizedConfig.ios?.icon;
-    delete normalizedConfig.ios?.splash;
     delete normalizedConfig.web?.favicon;
     delete normalizedConfig.web?.splash;
   }
@@ -210,6 +203,52 @@ function postUpdateExpoConfig(config: ExpoConfig, projectRoot: string): ExpoConf
   delete config.ios?.googleServicesFile;
 
   return config;
+}
+
+/**
+ * Collect iOS icon to flattened file paths.
+ */
+function collectIosIcons(icon: NonNullable<ExpoConfig['ios']>['icon']): string[] {
+  if (icon == null) {
+    return [];
+  }
+  if (typeof icon === 'string') {
+    return [icon];
+  }
+  return [icon.light, icon.dark, icon.tinted].filter((file): file is string => Boolean(file));
+}
+
+/**
+ * The filePath in config could be relative (`./assets/icon.png`, `assets/icon.png`) or even absolute.
+ * We need to normalize the path and return as relative path without `./` prefix.
+ */
+function ensureRelativePath(projectRoot: string, filePath: string): string {
+  const absolutePath = path.resolve(projectRoot, filePath);
+  return path.relative(projectRoot, absolutePath);
+}
+
+export async function createHashSourceExternalFileAsync({
+  projectRoot,
+  file,
+  reason,
+}: {
+  projectRoot: string;
+  file: string;
+  reason: string;
+}): Promise<HashSource | null> {
+  const hashSource = await getFileBasedHashSourceAsync(projectRoot, file, reason);
+  if (hashSource) {
+    debug(`Adding config external file - ${chalk.dim(file)}`);
+    if (hashSource.type === 'file' || hashSource.type === 'dir') {
+      // We include the expo config contents in the fingerprint,
+      // the `filePath` hashing for the external files is not necessary.
+      // Especially people using EAS environment variables for the google service files,
+      // the `filePath` will be different between local and remote builds.
+      // We use a fixed override hash key and basically ignore the `filePath` hashing.
+      hashSource.overrideHashKey = 'expoConfigExternalFile:contentsOnly';
+    }
+  }
+  return hashSource;
 }
 
 export async function getEasBuildSourcesAsync(projectRoot: string, options: NormalizedOptions) {
@@ -252,6 +291,22 @@ export async function getExpoAutolinkingAndroidSourcesAsync(
         project.sourceDir = filePath; // use relative path for the dir
         debug(`Adding expo-modules-autolinking android dir - ${chalk.dim(filePath)}`);
         results.push({ type: 'dir', filePath, reasons });
+        // `aarProjects` is present in project starting from SDK 53+.
+        if (project.aarProjects) {
+          for (const aarProject of project.aarProjects) {
+            // use relative path for aarProject fields
+            aarProject.aarFilePath = toPosixPath(
+              path.relative(projectRoot, aarProject.aarFilePath)
+            );
+            aarProject.projectDir = toPosixPath(path.relative(projectRoot, aarProject.projectDir));
+          }
+        }
+
+        if (typeof project.shouldUsePublicationScriptPath === 'string') {
+          project.shouldUsePublicationScriptPath = toPosixPath(
+            path.relative(projectRoot, project.shouldUsePublicationScriptPath)
+          );
+        }
       }
       if (module.plugins) {
         for (const plugin of module.plugins) {
@@ -261,6 +316,7 @@ export async function getExpoAutolinkingAndroidSourcesAsync(
           results.push({ type: 'dir', filePath, reasons });
         }
       }
+      // Backward compatibility for SDK versions earlier than 53
       if (module.aarProjects) {
         for (const aarProject of module.aarProjects) {
           // use relative path for aarProject fields

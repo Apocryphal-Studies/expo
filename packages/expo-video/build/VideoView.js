@@ -1,3 +1,4 @@
+import { jsx as _jsx } from "react/jsx-runtime";
 import { PureComponent, createRef } from 'react';
 import NativeVideoModule from './NativeVideoModule';
 import NativeVideoView, { NativeTextureVideoView } from './NativeVideoView';
@@ -15,6 +16,9 @@ export function isPictureInPictureSupported() {
     return NativeVideoModule.isPictureInPictureSupported();
 }
 export class VideoView extends PureComponent {
+    /**
+     * A reference to the underlying native view. On web it is a reference to the HTMLVideoElement.
+     */
     nativeRef = createRef();
     /**
      * Enters fullscreen mode.
@@ -52,14 +56,11 @@ export class VideoView extends PureComponent {
     }
     render() {
         const { player, ...props } = this.props;
-        const playerId = getPlayerId(player);
-        if (props.allowsFullscreen !== undefined) {
-            console.warn('The `allowsFullscreen` prop is deprecated and will be removed in a future release. Use `fullscreenOptions` prop instead.');
-        }
+        const playerId = player ? getPlayerId(player) : null;
         if (NativeTextureVideoView && this.props.surfaceType === 'textureView') {
-            return <NativeTextureVideoView {...props} player={playerId} ref={this.nativeRef}/>;
+            return _jsx(NativeTextureVideoView, { ...props, player: playerId, ref: this.nativeRef });
         }
-        return <NativeVideoView {...props} player={playerId} ref={this.nativeRef}/>;
+        return _jsx(NativeVideoView, { ...props, player: playerId, ref: this.nativeRef });
     }
 }
 // Temporary solution to pass the shared object ID instead of the player object.

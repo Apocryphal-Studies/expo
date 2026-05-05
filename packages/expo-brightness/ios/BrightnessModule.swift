@@ -22,7 +22,7 @@ public class BrightnessModule: Module {
       }
       permissions.getPermissionUsingRequesterClass(
         BrightnessPermissionsRequester.self,
-        resolve: promise.resolver,
+        resolve: promise.legacyResolver,
         reject: promise.legacyRejecter
       )
     }
@@ -33,7 +33,7 @@ public class BrightnessModule: Module {
       }
       permissions.askForPermission(
         usingRequesterClass: BrightnessPermissionsRequester.self,
-        resolve: promise.resolver,
+        resolve: promise.legacyResolver,
         reject: promise.legacyRejecter
       )
     }
@@ -68,7 +68,6 @@ public class BrightnessModule: Module {
 
     AsyncFunction("getSystemBrightnessAsync") {}
     AsyncFunction("setSystemBrightnessAsync") {}
-    AsyncFunction("useSystemBrightnessAsync") {}
     AsyncFunction("isUsingSystemBrightnessAsync") {}
     AsyncFunction("getSystemBrightnessModeAsync") {}
     AsyncFunction("setSystemBrightnessModeAsync") {}

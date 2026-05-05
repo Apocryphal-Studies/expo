@@ -48,7 +48,7 @@ export default function UpdatesScreen() {
       setTimeout(async () => {
         await Updates.hideReloadScreen();
       }, 3000);
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Error', `Failed to show reload screen: ${error.message}`);
     }
   };
@@ -83,9 +83,8 @@ export default function UpdatesScreen() {
   const setLocalImageOptions = () => {
     return Updates.showReloadScreen({
       reloadScreenOptions: {
-        backgroundColor: getRandomColor(),
-        image: require('../../assets/images/react-native.png'),
-        imageResizeMode: 'contain',
+        backgroundColor: 'black',
+        image: require('../../assets/images/sdk-54-release.png'),
       },
     });
   };

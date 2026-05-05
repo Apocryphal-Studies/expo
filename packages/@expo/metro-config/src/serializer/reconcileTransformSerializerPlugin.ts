@@ -4,15 +4,15 @@
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  */
-import { types as t } from '@babel/core';
+import type { types as t } from '@babel/core';
 import generate from '@babel/generator';
 import type {
   MixedOutput,
   Module,
   ReadOnlyGraph,
   SerializerOptions,
-} from '@expo/metro/metro/DeltaBundler/types.flow';
-import JsFileWrapping from '@expo/metro/metro/ModuleGraph/worker/JsFileWrapping';
+} from '@expo/metro/metro/DeltaBundler/types';
+import * as JsFileWrapping from '@expo/metro/metro/ModuleGraph/worker/JsFileWrapping';
 import { locToKey } from '@expo/metro/metro/ModuleGraph/worker/importLocationsPlugin';
 import { isResolvedDependency } from '@expo/metro/metro/lib/isResolvedDependency';
 import type { SerializerConfigT } from '@expo/metro/metro-config';
@@ -21,11 +21,11 @@ import { normalizePseudoGlobals } from '@expo/metro/metro-transform-plugins';
 import assert from 'assert';
 import util from 'node:util';
 
-import { ExpoJsOutput, isExpoJsOutput } from './jsOutput';
+import type { ExpoJsOutput } from './jsOutput';
+import { isExpoJsOutput } from './jsOutput';
 import { hasSideEffectWithDebugTrace } from './sideEffects';
+import type { Dependency, DependencyData } from '../transform-worker/collect-dependencies';
 import collectDependencies, {
-  Dependency,
-  DependencyData,
   getKeyForDependency,
   hashKey,
   InvalidRequireCallError as InternalInvalidRequireCallError,

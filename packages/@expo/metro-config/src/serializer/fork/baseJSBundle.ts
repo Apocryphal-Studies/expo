@@ -14,7 +14,7 @@ import type {
   Module,
   ReadOnlyGraph,
   SerializerOptions,
-} from '@expo/metro/metro/DeltaBundler/types.flow';
+} from '@expo/metro/metro/DeltaBundler/types';
 import CountingSet from '@expo/metro/metro/lib/CountingSet';
 import countLines from '@expo/metro/metro/lib/countLines';
 import getAppendScripts from '@expo/metro/metro/lib/getAppendScripts';
@@ -159,6 +159,7 @@ export function baseJSBundleWithDependencies(
     asyncRequireModulePath: options.asyncRequireModulePath,
     createModuleId: options.createModuleId,
     getRunModuleStatement: options.getRunModuleStatement,
+    globalPrefix: options.globalPrefix,
     inlineSourceMap: options.inlineSourceMap,
     runBeforeMainModule: options.runBeforeMainModule,
     runModule: options.runModule,
@@ -207,14 +208,13 @@ export function baseJSBundleWithDependencies(
     post: postCode,
     modules: mods.map(([id, code]) => [
       id,
-      typeof code === 'number' ? code : code.src,
+      typeof code === 'number' ? code : code?.src,
     ]) as ModuleMap,
     paths: Object.fromEntries(
       (
-        mods.filter(([id, code]) => typeof code !== 'number' && Object.keys(code.paths).length) as [
-          string,
-          { src: string; paths: Record<string, string> },
-        ][]
+        mods.filter(
+          ([id, code]) => typeof code !== 'number' && Object.keys(code?.paths ?? {}).length
+        ) as [string, { src: string; paths: Record<string, string> }][]
       ).map(([id, code]) => [id, code.paths])
     ),
   };

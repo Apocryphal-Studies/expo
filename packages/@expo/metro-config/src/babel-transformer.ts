@@ -31,6 +31,10 @@ export type ExpoBabelCaller = TransformOptions['caller'] & {
   platform?: string | null;
   routerRoot?: string;
   projectRoot: string;
+  /** When true, indicates this bundle should contain only the loader export */
+  isLoaderBundle?: boolean;
+  /** When true, indicates this file is part of a DOM component bundle */
+  isDomComponent?: boolean;
 };
 
 const debug = require('debug')('expo:metro-config:babel-transformer') as typeof console.log;
@@ -114,7 +118,12 @@ function getBabelCaller({
 
     isNodeModule,
 
-    isHMREnabled: options.hot,
+    // TODO(@kitten): Removed and the default; The `hot` parameter is now force-enabled in Metro
+    // to align caching for `dev` with `hot` being enforced. Hence, we match this by forcing our
+    // own caller flag to `true` for `babel-preset-expo`. However, `babel-preset-expo` is still
+    // able to disable the React Refresh transform plugin for other runtimes and uses this flag
+    // to identify Metro / React Refresh runtime targets
+    isHMREnabled: true,
 
     // Pass on the input type. Scripts shall be transformed to avoid dependencies (imports/requires),
     // for example by polyfills or Babel runtime
@@ -129,6 +138,14 @@ function getBabelCaller({
     supportsReactCompiler: isCustomTruthy(options.customTransformOptions?.reactCompiler)
       ? true
       : undefined,
+
+    // When true, indicates this bundle should contain only the loader export.
+    // Used by server-data-loaders-plugin to strip everything except the loader function.
+    isLoaderBundle: isCustomTruthy(options.customTransformOptions?.isLoaderBundle)
+      ? true
+      : undefined,
+
+    isDomComponent: options.customTransformOptions?.dom != null ? true : undefined,
 
     // This is picked up by `babel-preset-expo` if it's set, and overrides the minimum supported
     // `@babel/runtime` version that `@babel/plugin-transform-runtime` can assume is installed
@@ -152,6 +169,8 @@ const transform: BabelTransformer['transform'] = ({
   const OLD_BABEL_ENV = process.env.BABEL_ENV;
   process.env.BABEL_ENV = options.dev ? 'development' : process.env.BABEL_ENV || 'production';
 
+  const { enableBabelRCLookup = true } = options;
+
   try {
     const babelConfig: TransformOptions = {
       // ES modules require sourceType='module' but OSS may not always want that
@@ -174,8 +193,8 @@ const transform: BabelTransformer['transform'] = ({
       // Load the project babel config file.
       ...loadBabelConfig(options),
 
-      babelrc:
-        typeof options.enableBabelRCLookup === 'boolean' ? options.enableBabelRCLookup : true,
+      babelrc: enableBabelRCLookup,
+      ...(enableBabelRCLookup === false && { configFile: false }),
 
       plugins,
 
@@ -202,7 +221,14 @@ const transform: BabelTransformer['transform'] = ({
     assert(result.ast);
     return { ast: result.ast, metadata: result.metadata };
   } finally {
-    if (OLD_BABEL_ENV) {
+    // Restore the old process.env.BABEL_ENV
+    if (OLD_BABEL_ENV == null) {
+      // We have to treat this as a special case because writing undefined to
+      // an environment variable coerces it to the string 'undefined'. To
+      // unset it, we must delete it.
+      // See https://github.com/facebook/metro/pull/446
+      delete process.env.BABEL_ENV;
+    } else {
       process.env.BABEL_ENV = OLD_BABEL_ENV;
     }
   }

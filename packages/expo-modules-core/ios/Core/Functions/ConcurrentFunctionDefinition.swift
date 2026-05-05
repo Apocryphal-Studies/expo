@@ -1,11 +1,13 @@
 // Copyright 2022-present 650 Industries. All rights reserved.
 
+import ExpoModulesJSI
+
 /**
- Type-erased protocol for asynchronous functions using Swift concurrency
+ Type-erased protocol for asynchronous functions using Swift concurrency.
  */
 internal protocol AnyConcurrentFunctionDefinition: AnyFunctionDefinition {
   /**
-   Specifies if the main actor should be used. Necessary when attached to a view
+   Specifies if the main actor should be used. Necessary when attached to a view.
    */
   var requiresMainActor: Bool { get set }
 }
@@ -14,8 +16,8 @@ internal protocol AnyConcurrentFunctionDefinition: AnyFunctionDefinition {
  Represents a concurrent function that can only be called asynchronously, thus its JavaScript equivalent returns a Promise.
  As opposed to `AsyncFunctionDefinition`, it can leverage the new Swift's concurrency model and take the async/await closure.
  */
-public final class ConcurrentFunctionDefinition<Args, FirstArgType, ReturnType>: AnyConcurrentFunctionDefinition {
-  typealias ClosureType = (Args) async throws -> ReturnType
+public class ConcurrentFunctionDefinition<Args, FirstArgType, ReturnType>: AnyConcurrentFunctionDefinition, @unchecked Sendable {
+  typealias ClosureType = @Sendable (Args) async throws -> sending ReturnType
 
   let body: ClosureType
 
@@ -28,6 +30,10 @@ public final class ConcurrentFunctionDefinition<Args, FirstArgType, ReturnType>:
     self.name = name
     self.body = body
     self.dynamicArgumentTypes = dynamicArgumentTypes
+    self.trailingOptionalArgumentsCount = dynamicArgumentTypes
+      .reversed()
+      .prefix(while: { $0 is DynamicOptionalType })
+      .count
   }
 
   // MARK: - AnyFunction
@@ -36,95 +42,66 @@ public final class ConcurrentFunctionDefinition<Args, FirstArgType, ReturnType>:
 
   let dynamicArgumentTypes: [AnyDynamicType]
 
+  private let trailingOptionalArgumentsCount: Int
+
   var argumentsCount: Int {
     return dynamicArgumentTypes.count - (takesOwner ? 1 : 0)
+  }
+
+  var requiredArgumentsCount: Int {
+    return argumentsCount - trailingOptionalArgumentsCount
   }
 
   var takesOwner: Bool = false
   var requiresMainActor: Bool = false
 
-  func call(by owner: AnyObject?, withArguments args: [Any], appContext: AppContext, callback: @escaping (FunctionCallResult) -> Void) {
-    var arguments: [Any]
-
+  @JavaScriptActor
+  func call(_ appContext: AppContext, this: JavaScriptValue, arguments: consuming JavaScriptValuesBuffer) async throws -> JavaScriptValue {
     do {
-      try validateArgumentsNumber(function: self, received: args.count)
+      try validateArgumentsNumber(function: self, received: arguments.count)
 
-      arguments = concat(
-        arguments: args,
-        withOwner: owner,
-        withPromise: nil,
-        forFunction: self,
-        appContext: appContext
-      )
+      // Arguments must be converted on the JS thread, before we jump to another thread.
+      let nativeArguments = try toNativeClosureArguments(converter: appContext.converter, fn: self, this: this, arguments: arguments)
 
-      // All `JavaScriptValue` args must be preliminarly converted on the JS thread, before we jump to the function's queue.
-      arguments = try cast(jsValues: arguments, forFunction: self, appContext: appContext)
+      guard let argumentsTuple: Args = try Conversions.toTuple(nativeArguments) else {
+        throw ArgumentConversionException()
+      }
+      // Safe to mark as nonisolated(unsafe) — the tuple contains fully converted native values
+      // with no references back to JS objects, so it can safely cross the actor boundary.
+      nonisolated(unsafe) let nonisolatedArgumentsTuple = argumentsTuple
+
+      let returnValue: ReturnType = if requiresMainActor {
+        try await callBodyOnMainActor(nonisolatedArgumentsTuple)
+      } else {
+        try await body(nonisolatedArgumentsTuple)
+      }
+
+      return try await appContext.runtime.execute {
+        return try appContext.converter.toJS(returnValue, ~ReturnType.self)
+      }
     } catch let error as Exception {
-      callback(.failure(error))
-      return
+      throw FunctionCallException(name).causedBy(error)
     } catch {
-      callback(.failure(UnexpectedException(error)))
-      return
-    }
-
-    // Switch from the synchronous context to asynchronous
-    Task { [arguments] in
-      let result: Result<Any, Exception>
-
-      do {
-        // Convert arguments to the types desired by the function.
-        var finalArguments: [Any]
-        if requiresMainActor {
-          finalArguments = try await MainActor.run {
-            try cast(arguments: arguments, forFunction: self, appContext: appContext)
-          }
-        } else {
-          finalArguments = try cast(arguments: arguments, forFunction: self, appContext: appContext)
-        }
-
-        // TODO: Right now we force cast the tuple in all types of functions, but we should throw another exception here.
-        // swiftlint:disable force_cast
-        let argumentsTuple = try Conversions.toTuple(finalArguments) as! Args
-        let returnValue = try await body(argumentsTuple)
-
-        result = .success(returnValue)
-      } catch let error as Exception {
-        result = .failure(FunctionCallException(name).causedBy(error))
-      } catch {
-        result = .failure(UnexpectedException(error))
-      }
-
-      // Go back to the JS thread to execute the callback
-      appContext.executeOnJavaScriptThread {
-        callback(result)
-      }
+      throw UnexpectedException(error)
     }
   }
 
   // MARK: - JavaScriptObjectBuilder
 
+  @JavaScriptActor
   func build(appContext: AppContext) throws -> JavaScriptObject {
-    return try appContext.runtime.createAsyncFunction(name, argsCount: argumentsCount) {
-      [weak appContext, weak self, name] this, args, resolve, reject in
-
+    return try appContext.runtime.createAsyncFunction(name) { [weak appContext, self] this, arguments in
       guard let appContext else {
-        let exception = Exceptions.AppContextLost()
-        return reject(exception.code, exception.description, nil)
+        throw Exceptions.AppContextLost()
       }
-      guard let self else {
-        let exception = NativeFunctionUnavailableException(name)
-        return reject(exception.code, exception.description, nil)
-      }
-      self.call(by: this, withArguments: args, appContext: appContext) { result in
-        switch result {
-        case .failure(let error):
-          reject(error.code, error.description, nil)
-        case .success(let value):
-          // Convert some results to primitive types (e.g. records) or JS values (e.g. shared objects)
-          let convertedResult = Conversions.convertFunctionResult(value, appContext: appContext, dynamicType: ~ReturnType.self)
-          resolve(convertedResult)
-        }
-      }
-    }
+      return try await self.call(appContext, this: this, arguments: arguments)
+    }.asObject()
+  }
+
+  // MARK: - Privates
+
+  @MainActor
+  private func callBodyOnMainActor(_ args: sending Args) async throws -> sending ReturnType {
+    return try await body(args)
   }
 }

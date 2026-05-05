@@ -53,20 +53,20 @@ exports.collectDependenciesForShaking = collectDependenciesForShaking;
  */
 const core_1 = require("@babel/core");
 const generator_1 = __importDefault(require("@babel/generator"));
-const JsFileWrapping_1 = __importDefault(require("@expo/metro/metro/ModuleGraph/worker/JsFileWrapping"));
+const JsFileWrapping = __importStar(require("@expo/metro/metro/ModuleGraph/worker/JsFileWrapping"));
 const generateImportNames_1 = __importDefault(require("@expo/metro/metro/ModuleGraph/worker/generateImportNames"));
 const importLocationsPlugin_1 = require("@expo/metro/metro/ModuleGraph/worker/importLocationsPlugin");
 const metro_cache_1 = require("@expo/metro/metro-cache");
 const metro_cache_key_1 = require("@expo/metro/metro-cache-key");
 const metro_source_map_1 = require("@expo/metro/metro-source-map");
 const metroTransformPlugins = __importStar(require("@expo/metro/metro-transform-plugins"));
-const getMinifier_1 = __importDefault(require("@expo/metro/metro-transform-worker/utils/getMinifier"));
 const node_assert_1 = __importDefault(require("node:assert"));
 const assetTransformer = __importStar(require("./asset-transformer"));
 const collect_dependencies_1 = __importStar(require("./collect-dependencies"));
 const count_lines_1 = require("./count-lines");
 const resolveOptions_1 = require("./resolveOptions");
 const transform_plugins_1 = require("../transform-plugins");
+const getMinifier_1 = require("./utils/getMinifier");
 class InvalidRequireCallError extends Error {
     innerError;
     filename;
@@ -77,7 +77,9 @@ class InvalidRequireCallError extends Error {
     }
 }
 exports.InvalidRequireCallError = InvalidRequireCallError;
-// asserts non-null
+function asWritable(input) {
+    return input;
+}
 function nullthrows(x, message) {
     (0, node_assert_1.default)(x != null, message);
     return x;
@@ -105,7 +107,7 @@ const minifyCode = async (config, filename, code, source, map, reserved = []) =>
             isIgnored: false,
         },
     ]).toMap(undefined, {});
-    const minify = (0, getMinifier_1.default)(config.minifierPath);
+    const minify = (0, getMinifier_1.getMinifier)(config.minifierPath);
     try {
         const minified = await minify({
             code,
@@ -127,18 +129,6 @@ const minifyCode = async (config, filename, code, source, map, reserved = []) =>
     }
 };
 exports.minifyCode = minifyCode;
-function renameTopLevelModuleVariables() {
-    // A babel plugin which renames variables in the top-level scope that are named "module".
-    return {
-        visitor: {
-            Program(path) {
-                ['global', 'require', 'module', 'exports'].forEach((name) => {
-                    path.scope.rename(name, path.scope.generateUidIdentifier(name).name);
-                });
-            },
-        },
-    };
-}
 function applyUseStrictDirective(ast) {
     // Add "use strict" if the file was parsed as a module, and the directive did
     // not exist yet.
@@ -149,7 +139,7 @@ function applyUseStrictDirective(ast) {
         directives.push(core_1.types.directive(core_1.types.directiveLiteral('use strict')));
     }
 }
-function applyImportSupport(ast, { filename, options, importDefault, importAll, collectLocations, }) {
+function applyImportSupport(ast, { filename, options, importDefault, importAll, collectLocations, performConstantFolding, }) {
     // Perform the import-export transform (in case it's still needed), then
     // fold requires and perform constant folding (if in dev).
     const plugins = [];
@@ -170,7 +160,7 @@ function applyImportSupport(ast, { filename, options, importDefault, importAll, 
         const liveBindings = options.customTransformOptions?.liveBindings !== 'false';
         plugins.push([
             liveBindings ? transform_plugins_1.importExportLiveBindingsPlugin : transform_plugins_1.importExportPlugin,
-            { ...babelPluginOpts },
+            { ...babelPluginOpts, performConstantFolding },
         ]);
     }
     // NOTE(EvanBacon): This can basically never be safely enabled because it doesn't respect side-effects and
@@ -188,9 +178,7 @@ function applyImportSupport(ast, { filename, options, importDefault, importAll, 
     // plugins.push([metroTransformPlugins.inlinePlugin, babelPluginOpts]);
     // TODO: This MUST be run even though no plugins are added, otherwise the babel runtime generators are broken.
     if (plugins.length) {
-        return nullthrows(
-        // @ts-expect-error
-        (0, core_1.transformFromAstSync)(ast, '', {
+        const result = nullthrows((0, core_1.transformFromAstSync)(ast, '', {
             ast: true,
             babelrc: false,
             code: false,
@@ -209,6 +197,10 @@ function applyImportSupport(ast, { filename, options, importDefault, importAll, 
             // > Make sure to test the above mentioned case before flipping the flag back to false.
             cloneInputAst: false,
         }));
+        return {
+            ast: result.ast,
+            metadata: result.metadata,
+        };
     }
     return { ast };
 }
@@ -229,9 +221,7 @@ function performConstantFolding(ast, { filename }) {
     // Run the constant folding plugin in its own pass, avoiding race conditions
     // with other plugins that have exit() visitors on Program (e.g. the ESM
     // transform).
-    ast = nullthrows(
-    // @ts-expect-error
-    (0, core_1.transformFromAstSync)(ast, '', {
+    const result = (0, core_1.transformFromAstSync)(ast, '', {
         ast: true,
         babelrc: false,
         code: false,
@@ -244,8 +234,8 @@ function performConstantFolding(ast, { filename }) {
         // running with `cloneInputAst: true`.
         // This isn't needed anymore since `clearProgramScopePlugin` re-crawls the AST’s scope instead.
         cloneInputAst: false,
-    }).ast);
-    return ast;
+    })?.ast;
+    return nullthrows(result);
 }
 async function transformJS(file, { config, options }) {
     const targetEnv = options.customTransformOptions?.environment;
@@ -270,17 +260,20 @@ async function transformJS(file, { config, options }) {
     // not exist yet.
     applyUseStrictDirective(ast);
     const unstable_renameRequire = config.unstable_renameRequire;
+    // NOTE(@hassankhan): Constant folding can be an expensive/slow operation, so we limit it to
+    // production builds, or files that have specifically seen a change in their exports
+    if (!options.dev || file.performConstantFolding) {
+        ast = performConstantFolding(ast, { filename: file.filename });
+    }
     // Disable all Metro single-file optimizations when full-graph optimization will be used.
     if (!optimize) {
         ast = applyImportSupport(ast, {
             filename: file.filename,
+            performConstantFolding: Boolean(file.performConstantFolding),
             options,
             importDefault,
             importAll,
         }).ast;
-    }
-    if (!options.dev) {
-        ast = performConstantFolding(ast, { filename: file.filename });
     }
     let dependencyMapName = '';
     let dependencies;
@@ -292,7 +285,7 @@ async function transformJS(file, { config, options }) {
     let collectDependenciesOptions;
     if (file.type === 'js/script') {
         dependencies = [];
-        wrappedAst = JsFileWrapping_1.default.wrapPolyfill(ast);
+        wrappedAst = JsFileWrapping.wrapPolyfill(ast);
     }
     else {
         try {
@@ -343,7 +336,7 @@ async function transformJS(file, { config, options }) {
         }
         else {
             // TODO: Replace this with a cheaper transform that doesn't require AST.
-            ({ ast: wrappedAst } = JsFileWrapping_1.default.wrapModule(ast, importDefault, importAll, dependencyMapName, config.globalPrefix, 
+            ({ ast: wrappedAst } = JsFileWrapping.wrapModule(ast, importDefault, importAll, dependencyMapName, config.globalPrefix, 
             // TODO: This config is optional to allow its introduction in a minor
             // release. It should be made non-optional in ConfigT or removed in
             // future.
@@ -374,8 +367,8 @@ async function transformJS(file, { config, options }) {
         sourceFileName: file.filename,
         sourceMaps: true,
     }, file.code);
-    // @ts-expect-error: incorrectly typed upstream
-    let map = result.rawMappings ? result.rawMappings.map(metro_source_map_1.toSegmentTuple) : [];
+    // NOTE: incorrectly typed upstream
+    let map = result?.rawMappings.map(metro_source_map_1.toSegmentTuple) ?? [];
     let code = result.code;
     // NOTE: We might want to enable this on native + hermes when tree shaking is enabled.
     if (minify) {
@@ -404,6 +397,8 @@ async function transformJS(file, { config, options }) {
         : undefined;
     let lineCount;
     ({ lineCount, map } = (0, count_lines_1.countLinesAndTerminateMap)(code, map));
+    // Clean the AST for tree shaking by stripping non-serializable values (Symbols, functions, etc.)
+    // that React Compiler and other Babel plugins may add.
     const output = [
         {
             data: {
@@ -415,6 +410,7 @@ async function transformJS(file, { config, options }) {
                 reactServerReference: file.reactServerReference,
                 reactClientReference: file.reactClientReference,
                 expoDomComponentReference: file.expoDomComponentReference,
+                loaderReference: file.loaderReference,
                 ...(possibleReconcile
                     ? {
                         ast: wrappedAst,
@@ -427,6 +423,23 @@ async function transformJS(file, { config, options }) {
             type: file.type,
         },
     ];
+    if (possibleReconcile) {
+        // TODO(@kitten): Check why `reactCompilerFlag === true` is checked below
+        const reactCompilerFlag = options.customTransformOptions?.reactCompiler;
+        if (reactCompilerFlag === true || reactCompilerFlag === 'true') {
+            try {
+                return {
+                    dependencies,
+                    // React compiler adds symbols to the AST which break threading. This will ensure the
+                    // AST and other properties are fully serialized before being sent to the worker.
+                    output: JSON.parse(JSON.stringify(output)),
+                };
+            }
+            catch (error) {
+                throw new Error(`Failed to serialize output for file ${file.filename}: ${error}`);
+            }
+        }
+    }
     return {
         dependencies,
         output,
@@ -458,10 +471,10 @@ async function transformJSWithBabel(file, context) {
     // a malformed state. For now, we'll enable the experimental import support which compiles import statements
     // outside of the standard Babel process.
     if (!context.options.experimentalImportSupport) {
+        // TODO(@kitten): Check why `reactCompilerFlag === true` is checked below
         const reactCompilerFlag = context.options.customTransformOptions?.reactCompiler;
         if (reactCompilerFlag === true || reactCompilerFlag === 'true') {
-            // @ts-expect-error: readonly.
-            context.options.experimentalImportSupport = true;
+            asWritable(context.options).experimentalImportSupport = true;
         }
     }
     // TODO: Add a babel plugin which returns if the module has commonjs, and if so, disable all tree shaking optimizations early.
@@ -483,13 +496,15 @@ async function transformJSWithBabel(file, context) {
         reactServerReference: transformResult.metadata?.reactServerReference,
         reactClientReference: transformResult.metadata?.reactClientReference,
         expoDomComponentReference: transformResult.metadata?.expoDomComponentReference,
+        loaderReference: transformResult.metadata?.loaderReference,
+        performConstantFolding: transformResult.metadata?.performConstantFolding,
     };
     return await transformJS(jsFile, context);
 }
 async function transformJSON(file, { options, config }) {
     let code = config.unstable_disableModuleWrapping === true
-        ? JsFileWrapping_1.default.jsonToCommonJS(file.code)
-        : JsFileWrapping_1.default.wrapJson(file.code, config.globalPrefix);
+        ? JsFileWrapping.jsonToCommonJS(file.code)
+        : JsFileWrapping.wrapJson(file.code, config.globalPrefix);
     let map = [];
     const minify = (0, resolveOptions_1.shouldMinify)(options);
     if (minify) {
@@ -585,13 +600,11 @@ async function transform(config, projectRoot, filename, data, options) {
 function getCacheKey(config) {
     const { 
     // The `expo_customTransformerPath` from `./supervising-transform-worker` should not participate be part of the cache key
-    expo_customTransformerPath: _customTransformerPath, babelTransformerPath, minifierPath, 
-    // Pull out of the cache key to prevent accidental cache invalidation.
-    asyncRequireModulePath, ...remainingConfig } = config;
+    expo_customTransformerPath: _customTransformerPath, babelTransformerPath, minifierPath, ...remainingConfig } = config;
     // TODO(@kitten): We can now tie this into `@expo/metro`, which could also simply export a static version export
     const filesKey = (0, metro_cache_key_1.getCacheKey)([
         require.resolve(babelTransformerPath),
-        require.resolve(minifierPath),
+        (0, getMinifier_1.resolveMinifier)(minifierPath),
         require.resolve('@expo/metro/metro-transform-worker/utils/getMinifier'),
         require.resolve('./collect-dependencies'),
         require.resolve('./asset-transformer'),
@@ -622,14 +635,12 @@ const disabledDependencyTransformer = {
         while (topParent.parentPath) {
             topParent = topParent.parentPath;
         }
-        // @ts-expect-error
         if (topParent._handled) {
             return;
         }
         path.insertAfter(makeShimAsyncRequireTemplate({
             ASYNC_REQUIRE_MODULE_PATH: nullthrows(state.asyncRequireModulePathStringLiteral),
         }));
-        // @ts-expect-error: Prevent recursive loop
         topParent._handled = true;
     },
     transformPrefetch: () => { },

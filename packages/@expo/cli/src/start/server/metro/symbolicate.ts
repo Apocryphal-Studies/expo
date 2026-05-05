@@ -1,26 +1,4 @@
-/**
- * Copyright 2025-present 650 Industries (Expo). All rights reserved.
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- * `symbolicate` forked from https://github.com/facebook/metro/blob/95f880f48c9bff3255d8ed5846233ae1911a1a14/packages/metro/src/Server.js#L1281
- */
-
-import { codeFrameColumns } from '@babel/code-frame';
-import { ExplodedSourceMap } from '@expo/metro/metro/DeltaBundler/Serializers/getExplodedSourceMap';
-import symbolicate from '@expo/metro/metro/Server/symbolicate';
-import parseJsonBody from '@expo/metro/metro/lib/parseJsonBody';
-import { BundleOptions } from '@expo/metro/metro/shared/types.flow';
-import type { ConfigT } from '@expo/metro/metro-config';
-import type { IncomingMessage } from 'connect';
-import * as fs from 'fs';
-import type { ServerResponse } from 'http';
-import invariant from 'invariant';
-import jscSafeUrl from 'jsc-safe-url';
-import * as path from 'path';
-import { StackFrame } from 'stacktrace-parser';
+import type { StackFrame } from 'stacktrace-parser';
 
 export type CodeFrame = {
   content: string;

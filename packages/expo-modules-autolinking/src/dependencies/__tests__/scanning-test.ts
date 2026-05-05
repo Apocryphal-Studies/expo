@@ -2,6 +2,7 @@ import { vol } from 'memfs';
 import type { NestedDirectoryJSON } from 'memfs/lib/volume';
 import path from 'path';
 
+import { createMemoizer, _verifyMemoizerFreed } from '../../memoize';
 import { scanDependenciesInSearchPath } from '../scanning';
 
 function mockedNodeModule(
@@ -30,12 +31,19 @@ const symlinkMany = (symlinks: Record<string, string>) => {
 const projectRoot = '/fake/project';
 const projectRootNodeModules = '/fake/project/node_modules';
 
+const itWithMemoize = (name: string, fn: () => Promise<void>) => {
+  return it(name, async () => {
+    await createMemoizer().withMemoizer(fn);
+    expect(_verifyMemoizerFreed()).toBe(true);
+  });
+};
+
 describe(scanDependenciesInSearchPath, () => {
   afterEach(() => {
     vol.reset();
   });
 
-  it('discovers unscoped and scoped dependencies', async () => {
+  itWithMemoize('discovers unscoped and scoped dependencies', async () => {
     vol.fromNestedJSON(
       {
         node_modules: {
@@ -72,7 +80,7 @@ describe(scanDependenciesInSearchPath, () => {
     `);
   });
 
-  it('discovers symlinked dependencies', async () => {
+  itWithMemoize('discovers symlinked dependencies', async () => {
     vol.fromNestedJSON(
       {
         'react-native-third-party': mockedNodeModule('react-native-third-party'),
@@ -104,7 +112,7 @@ describe(scanDependenciesInSearchPath, () => {
     `);
   });
 
-  it('discovers transitive, isolated dependencies', async () => {
+  itWithMemoize('discovers transitive, isolated dependencies', async () => {
     vol.fromNestedJSON(
       {
         ...mockedNodeModule('root', {
@@ -143,7 +151,7 @@ describe(scanDependenciesInSearchPath, () => {
     `);
   });
 
-  it('resolves conflicts as duplicates', async () => {
+  itWithMemoize('resolves conflicts as duplicates', async () => {
     vol.fromNestedJSON(
       {
         node_modules: {
@@ -178,7 +186,7 @@ describe(scanDependenciesInSearchPath, () => {
     `);
   });
 
-  it('ignores missing package.json files on dependencies', async () => {
+  itWithMemoize('ignores missing package.json files on dependencies', async () => {
     vol.fromNestedJSON(
       {
         node_modules: {
@@ -215,7 +223,7 @@ describe(scanDependenciesInSearchPath, () => {
     `);
   });
 
-  it('ignores files', async () => {
+  itWithMemoize('ignores files', async () => {
     vol.fromNestedJSON(
       {
         node_modules: {
@@ -230,7 +238,7 @@ describe(scanDependenciesInSearchPath, () => {
     expect(result).toEqual({});
   });
 
-  it('ignores dependency names from filter', async () => {
+  itWithMemoize('ignores dependency names from filter', async () => {
     vol.fromNestedJSON(
       {
         node_modules: {
@@ -255,6 +263,37 @@ describe(scanDependenciesInSearchPath, () => {
           "path": "/fake/project/node_modules/included",
           "source": 1,
           "version": "0.0.1",
+        },
+      }
+    `);
+  });
+
+  itWithMemoize('supports direct path to node module', async () => {
+    vol.fromNestedJSON(
+      {
+        node_modules: {
+          'react-native-third-party': {
+            'package.json': JSON.stringify({ name: 'react-native-third-party' }),
+          },
+        },
+      },
+      projectRoot
+    );
+
+    const result = await scanDependenciesInSearchPath(
+      path.join(projectRootNodeModules, 'react-native-third-party')
+    );
+
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "react-native-third-party": {
+          "depth": 0,
+          "duplicates": null,
+          "name": "react-native-third-party",
+          "originPath": "/fake/project/node_modules/react-native-third-party",
+          "path": "/fake/project/node_modules/react-native-third-party",
+          "source": 1,
+          "version": "",
         },
       }
     `);

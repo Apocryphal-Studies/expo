@@ -42,7 +42,7 @@ extension ExpoSwiftUI {
   /**
    A hosting view that renders a SwiftUI view inside the UIKit view hierarchy.
    */
-  public final class HostingView<Props: ViewProps, ContentView: View<Props>>: ExpoView, AnyExpoSwiftUIHostingView {
+  public final class HostingView<Props: ViewProps, ContentView: View<Props>>: ExpoView, @MainActor AnyExpoSwiftUIHostingView {
     /**
      Props object that stores all the props for this particular view.
      It's an environment object that is observed by the content view.
@@ -58,14 +58,19 @@ extension ExpoSwiftUI {
     /**
      View controller that embeds the content view into the UIKit view hierarchy.
      */
-    private let hostingController: UIViewController
+    private let hostingController: UIHostingController<AnyView>
+
+    /**
+     Tracks whether safe area has been configured (can only be set once on mount)
+     */
+    private var hasSafeAreaBeenConfigured = false
 
     /**
      Initializes a SwiftUI hosting view with the given SwiftUI view type.
      */
     init(viewType: ContentView.Type, props: Props, appContext: AppContext) {
       self.contentView = ContentView(props: props)
-      let rootView = AnyView(contentView.environmentObject(shadowNodeProxy))
+      let rootView = AnyView(contentView)
       self.props = props
       let controller = UIHostingController(rootView: rootView)
 
@@ -76,11 +81,16 @@ extension ExpoSwiftUI {
 
       super.init(appContext: appContext)
 
-      shadowNodeProxy.setViewSize = { size in
-        #if RCT_NEW_ARCH_ENABLED
-        self.setViewSize(size)
-        #endif
+      shadowNodeProxy.setViewSize = { [weak self] size in
+        self?.setViewSize(size)
       }
+
+      shadowNodeProxy.setStyleSize = { [weak self] width, height in
+        self?.setStyleSize(width, height: height)
+      }
+
+      props.shadowNodeProxy = shadowNodeProxy
+
       shadowNodeProxy.objectWillChange.send()
 
       #if os(iOS) || os(tvOS)
@@ -110,6 +120,13 @@ extension ExpoSwiftUI {
       } catch let error {
         log.error("Updating props for \(ContentView.self) has failed: \(error.localizedDescription)")
       }
+
+      if !hasSafeAreaBeenConfigured,
+         let safeAreaProps = props as? SafeAreaControllable,
+         let ignoreSafeArea = safeAreaProps.ignoreSafeArea {
+        hostingController.disableSafeArea(ignoreSafeArea)
+        hasSafeAreaBeenConfigured = true
+      }
     }
 
     /**
@@ -136,7 +153,12 @@ extension ExpoSwiftUI {
       return true
     }
 
-#if RCT_NEW_ARCH_ENABLED
+    public override func layoutSubviews() {
+      super.layoutSubviews()
+      // TODO: Use updateLayoutMetrics from RN. Add support in ExpoFabricView.
+      setupHostingViewConstraints()
+    }
+
     /**
      Fabric calls this function when mounting (attaching) a child component view.
      */
@@ -177,7 +199,6 @@ extension ExpoSwiftUI {
         props.objectWillChange.send()
       }
     }
-#endif // RCT_NEW_ARCH_ENABLED
 
     /**
      Setups layout constraints of the hosting controller view to match the layout set by React.
@@ -187,14 +208,13 @@ extension ExpoSwiftUI {
       guard let view = hostingController.view as UIView? else {
         return
       }
-      view.translatesAutoresizingMaskIntoConstraints = false
-
-      NSLayoutConstraint.activate([
-        view.topAnchor.constraint(equalTo: topAnchor),
-        view.bottomAnchor.constraint(equalTo: bottomAnchor),
-        view.leftAnchor.constraint(equalTo: leftAnchor),
-        view.rightAnchor.constraint(equalTo: rightAnchor)
-      ])
+      let frame = self.bounds
+      view.frame = frame
+        #if os(iOS) || os(tvOS)
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        #elseif os(macOS)
+        view.autoresizingMask = [.width, .height]
+        #endif
     }
 
     // MARK: - UIView lifecycle
@@ -204,9 +224,10 @@ extension ExpoSwiftUI {
 
       if window != nil, let parentController = reactViewController() {
         #if !os(macOS)
-        if parentController as? UINavigationController == nil {
+        if parentController as? UINavigationController == nil && parentController as? UITabBarController == nil {
           // Swift automatically adds the hostingController in the correct place when the parentController
-          // is UINavigationController, since it's children are supposed to be only screens
+          // is UINavigationController, since it's children are supposed to be only screens.
+          // Similarly, for UITabBarController we expect its children to be only tabs.
           parentController.addChild(hostingController)
         }
         #else
@@ -236,4 +257,48 @@ extension ExpoSwiftUI {
     }
 #endif
   }
+}
+
+extension UIHostingController {
+  func disableSafeArea(_ mode: ExpoSwiftUI.IgnoreSafeArea) {
+    if #available(iOS 16.4, tvOS 16.4, macOS 13.3, *) {
+      switch mode {
+      case .all:
+        self.safeAreaRegions.remove(.all)
+      case .keyboard:
+        self.safeAreaRegions.remove(.keyboard)
+      }
+    } else {
+      // For older versions
+      // https://gist.github.com/steipete/da72299613dcc91e8d729e48b4bb582c
+      // https://developer.apple.com/forums/thread/658432
+      guard let viewClass = object_getClass(view) else { return }
+
+      let suffix = mode == .all ? "_IgnoresSafeArea" : "_IgnoresKeyboard"
+      let viewSubclassName = String(cString: class_getName(viewClass)).appending(suffix)
+      if let viewSubclass = NSClassFromString(viewSubclassName) {
+          object_setClass(view, viewSubclass)
+      } else {
+          guard let viewClassNameUtf8 = (viewSubclassName as NSString).utf8String else { return }
+          guard let viewSubclass = objc_allocateClassPair(viewClass, viewClassNameUtf8, 0) else { return }
+
+          if mode == .all,
+             let method = class_getInstanceMethod(UIView.self, #selector(getter: UIView.safeAreaInsets)) {
+              let safeAreaInsets: @convention(block) (AnyObject) -> UIEdgeInsets = { _ in
+                  return .zero
+              }
+              class_addMethod(viewSubclass, #selector(getter: UIView.safeAreaInsets),
+                              imp_implementationWithBlock(safeAreaInsets), method_getTypeEncoding(method))
+          }
+
+          if let method = class_getInstanceMethod(viewClass, NSSelectorFromString("keyboardWillShowWithNotification:")) {
+              let keyboardWillShow: @convention(block) (AnyObject, AnyObject) -> Void = { _, _ in }
+              class_addMethod(viewSubclass, NSSelectorFromString("keyboardWillShowWithNotification:"),
+                              imp_implementationWithBlock(keyboardWillShow), method_getTypeEncoding(method))
+          }
+          objc_registerClassPair(viewSubclass)
+          object_setClass(view, viewSubclass)
+        }
+      }
+    }
 }

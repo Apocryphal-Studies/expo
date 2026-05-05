@@ -83,7 +83,7 @@ describe('exports with single-page', () => {
       .querySelectorAll('script')
       .filter((script) => script.attributes.src)
       .forEach((script) => {
-        const jsBundle = fs.readFileSync(path.join(outputDir, script.attributes.src), 'utf8');
+        const jsBundle = fs.readFileSync(path.join(outputDir, script.attributes.src ?? ''), 'utf8');
 
         // Ensure the bundle is valid
         expect(jsBundle).toMatch('__BUNDLE_START_TIME__');
@@ -107,8 +107,8 @@ describe('exports with single-page', () => {
 
     const links = indexHtml.querySelectorAll('html > head > link');
     expect(links.length).toBe(
-      // Global CSS, CSS Module, Vaul Modal CSS (and entry point)
-      6
+      // Global CSS and CSS Module
+      4
     );
 
     const linkStrings = links.map((l) => l.toString());
@@ -121,13 +121,6 @@ describe('exports with single-page', () => {
         ),
         expect.stringMatching(
           /<link rel="stylesheet" href="\/_expo\/static\/css\/global-(?<md5>[0-9a-fA-F]{32})\.css">/
-        ),
-        // Modal CSS
-        expect.stringMatching(
-          /<link rel="preload" href="\/_expo\/static\/css\/modal\.module-(?<md5>[0-9a-fA-F]{32})\.css" as="style">/
-        ),
-        expect.stringMatching(
-          /<link rel="stylesheet" href="\/_expo\/static\/css\/modal\.module-(?<md5>[0-9a-fA-F]{32})\.css">/
         ),
         // Test CSS module
         expect.stringMatching(
@@ -143,7 +136,7 @@ describe('exports with single-page', () => {
     expect(globalPreload).toBeDefined();
     if (globalPreload) {
       expect(
-        fs.readFileSync(path.join(outputDir, globalPreload.attributes.href), 'utf-8')
+        fs.readFileSync(path.join(outputDir, globalPreload.attributes.href ?? ''), 'utf-8')
       ).toMatchInlineSnapshot(`"div{background:#0ff}"`);
     }
 
@@ -151,7 +144,7 @@ describe('exports with single-page', () => {
     expect(testPreload).toBeDefined();
     if (testPreload) {
       expect(
-        fs.readFileSync(path.join(outputDir, testPreload.attributes.href), 'utf-8')
+        fs.readFileSync(path.join(outputDir, testPreload.attributes.href ?? ''), 'utf-8')
       ).toMatchInlineSnapshot(`".HPV33q_text{color:#1e90ff}"`);
     }
   });

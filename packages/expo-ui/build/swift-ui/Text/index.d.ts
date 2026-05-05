@@ -1,28 +1,46 @@
-import { type CommonViewModifierProps } from '../types';
+import * as React from 'react';
+import { type ClosedRangeDate, type CommonViewModifierProps } from '../types';
+/**
+ * The style used to format a date in a SwiftUI `Text` view.
+ */
+export type TextDateStyle = 'timer' | 'relative' | 'offset' | 'date' | 'time';
 export interface TextProps extends CommonViewModifierProps {
-    children: string;
     /**
-     * The font weight of the text.
-     * Maps to iOS system font weights.
+     * Text content or nested Text components.
      */
-    weight?: 'ultraLight' | 'thin' | 'light' | 'regular' | 'medium' | 'semibold' | 'bold' | 'heavy' | 'black';
+    children?: React.ReactNode;
     /**
-     * The font design of the text.
-     * Maps to iOS system font designs.
+     * Enables Markdown formatting for the text content using SwiftUI LocalizedStringKey.
      */
-    design?: 'default' | 'rounded' | 'serif' | 'monospaced';
+    markdownEnabled?: boolean;
     /**
-     * The font size of the text.
+     * A date to display using the specified `dateStyle`. The text auto-updates as time passes.
      */
-    size?: number;
+    date?: Date;
     /**
-     * The line limit of the text.
+     * The style used to format the `date` prop.
+     * @default 'date'
      */
-    lineLimit?: number;
+    dateStyle?: TextDateStyle;
     /**
-     * The color of the text.
+     * A time interval to display as a live-updating timer.
+     * @platform ios 16.0+
+     * @platform tvos 16.0+
      */
-    color?: string;
+    timerInterval?: ClosedRangeDate;
+    /**
+     * Whether the timer counts down (`true`) or up (`false`).
+     * @default true
+     * @platform ios 16.0+
+     * @platform tvos 16.0+
+     */
+    countsDown?: boolean;
+    /**
+     * A date at which the timer should appear paused.
+     * @platform ios 16.0+
+     * @platform tvos 16.0+
+     */
+    pauseTime?: Date;
 }
-export declare function Text(props: TextProps): import("react").JSX.Element;
+export declare function Text(props: TextProps): import("react/jsx-runtime").JSX.Element | null;
 //# sourceMappingURL=index.d.ts.map

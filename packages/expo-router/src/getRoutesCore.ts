@@ -21,6 +21,8 @@ export type Options = {
   internal_stripLoadRoute?: boolean;
   /* Used to simplify by skipping the generated routes */
   skipGenerated?: boolean;
+  /** Skip routes created by `generateStaticParams()` */
+  skipStaticParams?: boolean;
   /* Skip the generated not found route  */
   notFound?: boolean;
   /* Enable experimental server middleware support */
@@ -31,6 +33,7 @@ export type Options = {
   platform?: string;
   redirects?: RedirectConfig[];
   rewrites?: RewriteConfig[];
+  headers?: Record<string, string | string[]>;
   /* Keep redirects as valid routes within the RouteConfig tree */
   preserveRedirectAndRewrites?: boolean;
 
@@ -153,7 +156,7 @@ function getMiddleware(contextModule: RequireContext, options: Options): Middlew
     }
   }
 
-  const middlewareFilePath = rootMiddlewareFiles[0];
+  const middlewareFilePath = rootMiddlewareFiles[0]!;
 
   const middleware: MiddlewareNode = {
     loadRoute() {
@@ -382,6 +385,17 @@ function getDirectoryTree(contextModule: RequireContext, options: Options) {
               `The default export from route "${filePath}" is an async function. Ensure the React Component does not use async or promises.`
             );
           }
+
+          // Validate loader export in development
+          const loaderExport = routeModule?.loader;
+          if (loaderExport && typeof loaderExport !== 'function') {
+            throw new Error(`Route "${filePath}" exports a loader that is not a function.`);
+          }
+
+          const metadataExport = routeModule?.generateMetadata;
+          if (metadataExport && typeof metadataExport !== 'function') {
+            throw new Error(`Route "${filePath}" exports generateMetadata that is not a function.`);
+          }
         }
 
         return routeModule;
@@ -397,7 +411,7 @@ function getDirectoryTree(contextModule: RequireContext, options: Options) {
         continue;
       }
 
-      const redirect = redirects[meta.route];
+      const redirect = redirects[meta.route]!;
       node.destinationContextKey = redirect.destinationContextKey;
       node.permanent = redirect.permanent;
       node.generated = true;
@@ -409,7 +423,7 @@ function getDirectoryTree(contextModule: RequireContext, options: Options) {
           redirectConfig: redirect,
         });
       }
-      if (redirect.methods) {
+      if (redirect!.methods) {
         node.methods = redirect.methods;
       }
       node.type = 'redirect';
@@ -421,7 +435,7 @@ function getDirectoryTree(contextModule: RequireContext, options: Options) {
         continue;
       }
 
-      const rewrite = rewrites[meta.route];
+      const rewrite = rewrites[meta.route]!;
       node.destinationContextKey = rewrite.destinationContextKey;
       node.generated = true;
       if (node.type === 'route') {
@@ -679,9 +693,10 @@ function getFileMeta(
   let route = key;
 
   const parts = removeFileSystemDots(originalKey).split('/');
-  const filename = parts[parts.length - 1];
-  const [filenameWithoutExtensions, platformExtension] =
-    removeSupportedExtensions(filename).split('.');
+  const filename = parts[parts.length - 1]!;
+  const filenameParts = removeSupportedExtensions(filename).split('.');
+  const filenameWithoutExtensions = filenameParts[0]!;
+  const platformExtension = filenameParts[1];
 
   const isLayout = filenameWithoutExtensions === '_layout';
   const isApi = originalKey.match(/\+api\.(\w+\.)?[jt]sx?$/);
@@ -699,7 +714,7 @@ function getFileMeta(
   }
   let specificity = 0;
 
-  const hasPlatformExtension = validPlatforms.has(platformExtension);
+  const hasPlatformExtension = validPlatforms.has(platformExtension!);
   const usePlatformRoutes = options.platformRoutes ?? true;
 
   if (hasPlatformExtension) {
@@ -941,7 +956,7 @@ function crawlAndAppendInitialRoutesAndEntryFiles(
 }
 
 function getMostSpecific(routes: RouteNode[]) {
-  const route = routes[routes.length - 1];
+  const route = routes[routes.length - 1]!;
 
   if (!routes[0]) {
     throw new Error(
@@ -951,5 +966,5 @@ function getMostSpecific(routes: RouteNode[]) {
 
   // This works even tho routes is holey array (e.g it might have index 0 and 2 but not 1)
   // `.length` includes the holes in its count
-  return routes[routes.length - 1];
+  return route;
 }

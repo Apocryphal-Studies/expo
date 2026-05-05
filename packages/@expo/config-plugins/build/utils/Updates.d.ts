@@ -1,4 +1,4 @@
-import { Android, ExpoConfig, IOS } from '@expo/config-types';
+import type { Android, ExpoConfig, IOS } from '@expo/config-types';
 export type ExpoConfigUpdates = Pick<ExpoConfig, 'sdkVersion' | 'runtimeVersion' | 'updates' | 'slug'>;
 export declare const FINGERPRINT_RUNTIME_VERSION_SENTINEL = "file:fingerprint";
 export declare function getExpoUpdatesPackageVersion(projectRoot: string): string | null;
@@ -20,6 +20,7 @@ export declare function resolveRuntimeVersionPolicyAsync(policy: 'appVersion' | 
 export declare function getSDKVersion(config: Pick<ExpoConfigUpdates, 'sdkVersion'>): string | null;
 export declare function getUpdatesEnabled(config: Pick<ExpoConfigUpdates, 'updates'>): boolean;
 export declare function getUpdatesUseEmbeddedUpdate(config: Pick<ExpoConfigUpdates, 'updates'>): boolean;
+export declare function getUpdatesBsdiffPatchSupportEnabled(config: Pick<ExpoConfigUpdates, 'updates'>): boolean;
 export declare function getUpdatesTimeout(config: Pick<ExpoConfigUpdates, 'updates'>): number;
 export declare function getUpdatesCheckOnLaunch(config: Pick<ExpoConfigUpdates, 'updates'>, expoUpdatesPackageVersion?: string | null): 'NEVER' | 'ERROR_RECOVERY_ONLY' | 'ALWAYS' | 'WIFI_ONLY';
 export declare function getUpdatesCodeSigningCertificate(projectRoot: string, config: Pick<ExpoConfigUpdates, 'updates'>): string | undefined;

@@ -11,6 +11,9 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.uuidv5.InvalidNamespaceException
 import expo.modules.kotlin.uuidv5.uuidv5
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import java.util.UUID
 
 class CoreModule : Module() {
@@ -19,16 +22,19 @@ class CoreModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Property("expoModulesCoreVersion") {
-      return@Property BuildConfig.EXPO_MODULES_CORE_VERSION.let { version ->
-        version.split("-")[0].split(".").map { it.toInt() }.let { (major, minor, patch) ->
-          mapOf(
-            "version" to version,
-            "major" to major,
-            "minor" to minor,
-            "patch" to patch
-          )
-        }
-      }
+      val version = BuildConfig.EXPO_MODULES_CORE_VERSION
+      val (major, minor, patch) = version
+        .split("-")
+        .first()
+        .split(".")
+        .map { it.toInt() }
+
+      return@Property mapOf(
+        "version" to version,
+        "major" to major,
+        "minor" to minor,
+        "patch" to patch
+      )
     }
 
     Property("cacheDir") {
@@ -47,17 +53,19 @@ class CoreModule : Module() {
     Function("uuidv5") { name: String, namespace: String ->
       val namespaceUUID = try {
         UUID.fromString(namespace)
-      } catch (e: IllegalArgumentException) {
+      } catch (_: IllegalArgumentException) {
         throw InvalidNamespaceException(namespace)
       }
       return@Function uuidv5(namespaceUUID, name).toString()
     }
 
     Function("getViewConfig") { moduleName: String, viewName: String? ->
-      val holder = runtimeContext.registry.getModuleHolder(moduleName)
+      val holder = appContext.registry.getModuleHolder(moduleName)
         ?: return@Function null
 
-      val viewManagerDefinition = holder.definition.viewManagerDefinitions[viewName ?: DEFAULT_MODULE_VIEW]
+      val viewManagerDefinition = holder
+        .definition
+        .viewManagerDefinitions[viewName ?: DEFAULT_MODULE_VIEW]
         ?: return@Function null
 
       val validAttributes = viewManagerDefinition
@@ -85,6 +93,33 @@ class CoreModule : Module() {
       val reactActivity = appContext.throwingActivity as? ReactActivity ?: return@AsyncFunction
       val reactDelegate = reactActivity.reactDelegate ?: return@AsyncFunction
       reactDelegate.reload()
+    }
+
+    Function("installOnUIRuntime") {
+      val uiRuntimePointerHolder = appContext.runtime.jsiContext.global()["_WORKLET_RUNTIME"]
+        ?: throw IllegalStateException("UI Runtime is not available. Make sure you have Reanimated installed and imported in your project.")
+
+      assert(uiRuntimePointerHolder.isObject()) {
+        "Expected _WORKLET_RUNTIME to be an ArrayBuffer, got: ${uiRuntimePointerHolder.kind()}."
+      }
+
+      val uiRuntimePointerHolderObj = uiRuntimePointerHolder.getObject()
+      assert(uiRuntimePointerHolderObj.isArrayBuffer()) {
+        "Expected _WORKLET_RUNTIME to be an ArrayBuffer, got: ${uiRuntimePointerHolder.kind()}."
+      }
+
+      val arayBuffer = uiRuntimePointerHolderObj.getArrayBuffer()
+      assert(arayBuffer.size() == 8) {
+        "Expected _WORKLET_RUNTIME to be an ArrayBuffer with a size of 8 bytes (a pointer size), got: ${arayBuffer.size()}."
+      }
+
+      val runtimePointer = arayBuffer.read8Byte(0)
+
+      runBlocking {
+        withContext(Dispatchers.Main) {
+          appContext.uiRuntime.install(runtimePointer)
+        }
+      }
     }
   }
 }
