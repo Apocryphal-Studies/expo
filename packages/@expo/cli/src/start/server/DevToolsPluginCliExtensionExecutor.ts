@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import path from 'path';
+import { createInterface } from 'readline';
 
 import type {
   DevToolsPluginExecutorArguments,
@@ -28,6 +29,7 @@ export class DevToolsPluginCliExtensionExecutor {
   constructor(
     private plugin: DevToolsPluginInfo,
     private projectRoot: string,
+    private enableColorTTY = true,
     private spawnFunc: typeof spawn = spawn, // Used for injection when testing,
     private timeoutMs = DEFAULT_TIMEOUT_MS // Timeout for command execution
   ) {
@@ -75,27 +77,45 @@ export class DevToolsPluginCliExtensionExecutor {
     command,
     args,
     metroServerOrigin,
+    app,
     onOutput,
   }: DevToolsPluginExecutorArguments): Promise<DevToolsPluginOutput> => {
-    this.validate({ command, args });
+    this.validate({ command, args, app });
     return new Promise<DevToolsPluginOutput>(async (resolve) => {
       // Set up the command and its arguments
       const tool = path.join(this.plugin.packageRoot, this.plugin.cliExtensions!.entryPoint);
       const child = this.spawnFunc(
         'node',
-        [tool, command, `${JSON.stringify(args)}`, `${metroServerOrigin}`],
+        [
+          tool,
+          command,
+          `${JSON.stringify(args)}`,
+          `${metroServerOrigin}`,
+          `${JSON.stringify(app)}`,
+        ],
         {
           cwd: this.projectRoot,
-          env: { ...process.env },
+          /**
+           * This tells chalk (and other color libraries) to output ANSI color codes even when not running in a TTY.
+           */
+          env: { ...process.env, ...(this.enableColorTTY ? { FORCE_COLOR: '1' } : {}) },
         }
       );
 
       let finished = false;
       const pluginResults = new DevToolsPluginCliExtensionResults(onOutput);
 
-      // Collect output/error data
-      child.stdout.on('data', (data) => pluginResults.append(data.toString()));
-      child.stderr.on('data', (data) => pluginResults.append(data.toString(), 'error'));
+      // Use readline to handle line-buffered output
+      const stdoutRL = createInterface({ input: child.stdout, crlfDelay: Infinity });
+      const stderrRL = createInterface({ input: child.stderr, crlfDelay: Infinity });
+
+      stdoutRL.on('line', (line) => pluginResults.append(line));
+      stderrRL.on('line', (line) => pluginResults.append(line, 'error'));
+
+      const closeHandler = () => {
+        stdoutRL.close();
+        stderrRL.close();
+      };
 
       // Setup timeout
       const timeout = setTimeout(() => {
@@ -111,6 +131,7 @@ export class DevToolsPluginCliExtensionExecutor {
         if (finished) return;
         clearTimeout(timeout);
         finished = true;
+        closeHandler();
         pluginResults.exit(code);
         resolve(pluginResults.getOutput());
       });
@@ -119,6 +140,7 @@ export class DevToolsPluginCliExtensionExecutor {
         if (finished) return;
         clearTimeout(timeout);
         finished = true;
+        closeHandler();
         pluginResults.append(err.toString(), 'error');
         resolve(pluginResults.getOutput());
       });
