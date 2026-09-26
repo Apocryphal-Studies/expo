@@ -33,6 +33,7 @@ import { createCorsMiddleware } from '../middleware/CorsMiddleware';
 import { createJsInspectorMiddleware } from '../middleware/inspector/createJsInspectorMiddleware';
 import { prependMiddleware } from '../middleware/mutations';
 import { getPlatformBundlers } from '../platformBundlers';
+import { createSymbolicate } from './symbolicate';
 
 // prettier-ignore
 export const event = events('metro', (t) => [
@@ -425,6 +426,15 @@ export async function instantiateMetroAsync(
       fileBuffer
     );
   };
+
+  // Overwrite _symbolicate
+  metro._symbolicate = createSymbolicate({
+    projectRoot,
+    metroConfig,
+    rewriteRequestUrl: metroConfig.server.rewriteRequestUrl,
+    explodedSourceMapForBundleOptions: metro._explodedSourceMapForBundleOptions.bind(metro),
+    parseOptions: metro._parseOptions.bind(metro),
+  });
 
   setEventReporter(eventsSocket.reportMetroEvent);
 
